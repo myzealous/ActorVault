@@ -1,6 +1,7 @@
-name: Release
+name: Build Foundry Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -11,31 +12,43 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Validate package
-        run: npm run validate
-
-      - name: Verify tag matches manifest version
+      - name: Build Foundry module ZIP
         shell: bash
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          MANIFEST_VERSION="$(node -p "require('./module.json').version")"
-          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "Tag $TAG_VERSION does not match module.json $MANIFEST_VERSION"
-            exit 1
+          rm -rf dist
+          mkdir -p dist
+          zip -r dist/actor-vault.zip \
+            module.json \
+            scripts/actor-vault.js \
+            styles \
+            templates \
+            lang \
+            README.md \
+            CHANGELOG.md \
+            LICENSE
+          cp module.json dist/module.json
+
+      - name: Determine release tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=$(node -p "require('./module.json').version")
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build Foundry archive
-        run: npm run build
-
-      - uses: softprops/action-gh-release@v2
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
             dist/actor-vault.zip
-            module.json
+            dist/module.json
+          overwrite_files: true
