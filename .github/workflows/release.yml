@@ -24,7 +24,7 @@ jobs:
           mkdir -p dist
           zip -r dist/actor-vault.zip \
             module.json \
-            scripts/actor-vault.js \
+            scripts \
             styles \
             templates \
             lang \
