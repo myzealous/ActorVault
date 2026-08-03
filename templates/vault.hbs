@@ -10,6 +10,45 @@
     </div>
   </header>
 
+  <section class="actor-vault__resources">
+    <div class="actor-vault__resources-heading">
+      <div>
+        <h2>Player Dashboard</h2>
+        <div class="hint">Account-level resources shared by all of this player's characters.</div>
+      </div>
+      {{#if isGM}}
+      <label>
+        <span>Player</span>
+        <select data-resource-user>
+          {{#each users}}
+          <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+          {{/each}}
+        </select>
+      </label>
+      {{else}}
+      <strong>{{resourceUserName}}</strong>
+      {{/if}}
+    </div>
+
+    <form data-resource-form data-user-id="{{resourceUserId}}">
+      <div class="actor-vault__resource-grid">
+        <label><span>Gold</span><input type="number" name="gold" value="{{resources.gold}}" step="1"></label>
+        <label><span>Server Credits</span><input type="number" name="credits" value="{{resources.credits}}" step="1"></label>
+        <label><span>Experience</span><input type="number" name="xp" value="{{resources.xp}}" step="1"></label>
+      </div>
+      <h3>Magic Item Storage</h3>
+      <div class="actor-vault__storage-grid">
+        <label><span>Slot 1</span><input type="text" name="s0" value="{{resources.storage.0}}"></label>
+        <label><span>Slot 2</span><input type="text" name="s1" value="{{resources.storage.1}}"></label>
+        <label><span>Slot 3</span><input type="text" name="s2" value="{{resources.storage.2}}"></label>
+        <label><span>Slot 4</span><input type="text" name="s3" value="{{resources.storage.3}}"></label>
+      </div>
+      <div class="actor-vault__resource-actions">
+        <button type="button" data-action="save-resources"><i class="fas fa-floppy-disk"></i> Save Dashboard</button>
+      </div>
+    </form>
+  </section>
+
   {{#unless playersFolderFound}}
   <div class="actor-vault__warning">
     Create an Actor folder named <strong>Players</strong>. Only actors inside that folder or its subfolders are managed.
@@ -25,7 +64,7 @@
         <div class="actor-vault__list">
           {{#each actors}}
           <article class="actor-vault__row" data-actor-id="{{id}}">
-            <img src="{{img}}" alt="" />
+            <img src="{{img}}" alt="">
             <div class="actor-vault__identity">
               <strong>{{name}}</strong>
               <span>{{type}} · {{ownerName}}</span>
@@ -34,20 +73,14 @@
             <label class="actor-vault__owner-label">
               <span>Owner</span>
               <select data-owner-select data-actor-id="{{id}}">
-                {{#if ownerId}}
-                <option value="{{ownerId}}" selected>{{ownerName}}</option>
-                {{else}}
-                <option value="" selected>Unassigned</option>
-                {{/if}}
+                <option value="">Unassigned</option>
                 {{#each ../../users}}
-                <option value="{{id}}">{{name}}</option>
+                <option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>
                 {{/each}}
               </select>
             </label>
             {{/if}}
-            <button type="button" data-action="archive" data-id="{{id}}">
-              <i class="fas fa-box-archive"></i> {{localize "ACTORVAULT.Archive"}}
-            </button>
+            <button type="button" data-action="archive" data-id="{{id}}"><i class="fas fa-box-archive"></i> {{localize "ACTORVAULT.Archive"}}</button>
           </article>
           {{/each}}
         </div>
@@ -65,14 +98,12 @@
         <div class="actor-vault__list">
           {{#each actors}}
           <article class="actor-vault__row actor-vault__row--stored" data-pack-id="{{id}}">
-            <img src="{{img}}" alt="" />
+            <img src="{{img}}" alt="">
             <div class="actor-vault__identity">
               <strong>{{name}}</strong>
               <span>{{type}} · {{ownerName}}</span>
             </div>
-            <button type="button" data-action="activate" data-id="{{id}}">
-              <i class="fas fa-arrow-up-from-bracket"></i> {{localize "ACTORVAULT.Activate"}}
-            </button>
+            <button type="button" data-action="activate" data-id="{{id}}"><i class="fas fa-arrow-up-from-bracket"></i> {{localize "ACTORVAULT.Activate"}}</button>
           </article>
           {{/each}}
         </div>
