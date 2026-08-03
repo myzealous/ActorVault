@@ -4,8 +4,12 @@
 .avp-progression select { width:100%; min-width:0; }
 .avp-skill-points { font-size:1.05em; }
 .avp-breakdown { opacity:.72; }
-.actor-vault__row:has(.avp-progression) { grid-template-columns:42px minmax(0,1fr) minmax(145px,175px) minmax(130px,165px) auto; }
-.actor-vault__row--stored:has(.avp-progression) { grid-template-columns:42px minmax(0,1fr) minmax(145px,175px) auto; }
+.avs-skill-sync { min-width:150px; white-space:normal; line-height:1.1; }
+.avs-skill-sync--current { opacity:.65; filter:saturate(.2); }
+.avs-skill-sync--ready { border-color:#2f9e44; box-shadow:0 0 0 1px rgba(47,158,68,.45) inset; }
+.avs-skill-sync--error { border-color:#c92a2a; box-shadow:0 0 0 1px rgba(201,42,42,.45) inset; }
+.actor-vault__row:has(.avp-progression) { grid-template-columns:42px minmax(0,1fr) minmax(145px,175px) minmax(145px,175px) minmax(130px,165px) auto; }
+.actor-vault__row--stored:has(.avp-progression) { grid-template-columns:42px minmax(0,1fr) minmax(145px,175px) minmax(145px,175px) auto; }
 [data-avp-history] { width:auto; min-width:10rem; white-space:nowrap; }
 .avp-history-dialog { display:flex; flex-direction:column; gap:.75rem; height:100%; min-height:0; }
 .avp-history-dialog > label { display:flex; align-items:center; gap:.6rem; }
@@ -17,7 +21,7 @@
 .avp-history-empty { opacity:.7; font-style:italic; padding:.75rem; }
 @media (max-width:760px) {
   .actor-vault__row:has(.avp-progression), .actor-vault__row--stored:has(.avp-progression) { grid-template-columns:38px minmax(0,1fr) auto; }
-  .avp-progression { grid-column:2 / 4; }
+  .avp-progression, .avs-skill-sync { grid-column:2 / 4; }
   .avp-history-dialog > label { align-items:stretch; flex-direction:column; }
   .avp-history-dialog select { width:100%; min-width:0; }
 }
