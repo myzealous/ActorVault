@@ -2,62 +2,80 @@
   <header class="actor-vault__toolbar">
     <div>
       <strong>{{title}}</strong>
-      <div class="hint">Only one copy of a managed actor exists: active in the world or stored in the vault.</div>
+      <div class="hint">Only one copy exists: active in the world or stored in the vault.</div>
     </div>
-    {{#if isGM}}
-    <label class="actor-vault__filter">Owner
-      <select data-action="filter-owner">
-        <option value="">All owners</option>
-        {{#each users}}
-        <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
-        {{/each}}
-      </select>
-    </label>
-    {{/if}}
+    <div class="actor-vault__totals">
+      <span>Active: {{activeCount}}</span>
+      <span>Stored: {{storedCount}}</span>
+    </div>
   </header>
+
+  {{#unless playersFolderFound}}
+  <div class="actor-vault__warning">
+    Create an Actor folder named <strong>Players</strong>. Only actors inside that folder or its subfolders are managed.
+  </div>
+  {{/unless}}
 
   <div class="actor-vault__columns">
     <section>
-      <h2>{{localize "ACTORVAULT.Active"}} <span class="count">{{active.length}}</span></h2>
-      <div class="actor-vault__list">
-        {{#each active}}
-        <article class="actor-vault__row" data-actor-id="{{id}}">
-          <img src="{{img}}" alt="" />
-          <div class="actor-vault__identity">
-            <strong>{{name}}</strong>
-            <span>{{type}} · {{ownerName}}</span>
-          </div>
-          {{#if ../isGM}}
-          <select class="actor-vault__owner" data-owner-for="{{id}}" title="Primary owner">
-            {{#each ../users}}
-            <option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>
-            {{/each}}
-          </select>
-          {{/if}}
-          <button type="button" data-action="archive" data-id="{{id}}"><i class="fas fa-box-archive"></i> {{localize "ACTORVAULT.Archive"}}</button>
-        </article>
-        {{else}}
-        <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
-        {{/each}}
+      <h2>{{localize "ACTORVAULT.Active"}}</h2>
+      {{#each activeGroups}}
+      <div class="actor-vault__group">
+        <h3>{{name}}</h3>
+        <div class="actor-vault__list">
+          {{#each actors}}
+          <article class="actor-vault__row" data-actor-id="{{id}}">
+            <img src="{{img}}" alt="" />
+            <div class="actor-vault__identity">
+              <strong>{{name}}</strong>
+              <span>{{type}} · {{ownerName}}</span>
+            </div>
+            {{#if ../../isGM}}
+            <label class="actor-vault__owner-label">
+              <span>Owner</span>
+              <select data-owner-select data-actor-id="{{id}}">
+                <option value="">Unassigned</option>
+                {{#each ../../users}}
+                <option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </label>
+            {{/if}}
+            <button type="button" data-action="archive" data-id="{{id}}">
+              <i class="fas fa-box-archive"></i> {{localize "ACTORVAULT.Archive"}}
+            </button>
+          </article>
+          {{/each}}
+        </div>
       </div>
+      {{else}}
+      <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
+      {{/each}}
     </section>
 
     <section>
-      <h2>{{localize "ACTORVAULT.Stored"}} <span class="count">{{stored.length}}</span></h2>
-      <div class="actor-vault__list">
-        {{#each stored}}
-        <article class="actor-vault__row" data-pack-id="{{id}}">
-          <img src="{{img}}" alt="" />
-          <div class="actor-vault__identity">
-            <strong>{{name}}</strong>
-            <span>{{type}} · {{ownerName}}</span>
-          </div>
-          <button type="button" data-action="activate" data-id="{{id}}"><i class="fas fa-arrow-up-from-bracket"></i> {{localize "ACTORVAULT.Activate"}}</button>
-        </article>
-        {{else}}
-        <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
-        {{/each}}
+      <h2>{{localize "ACTORVAULT.Stored"}}</h2>
+      {{#each storedGroups}}
+      <div class="actor-vault__group">
+        <h3>{{name}}</h3>
+        <div class="actor-vault__list">
+          {{#each actors}}
+          <article class="actor-vault__row actor-vault__row--stored" data-pack-id="{{id}}">
+            <img src="{{img}}" alt="" />
+            <div class="actor-vault__identity">
+              <strong>{{name}}</strong>
+              <span>{{type}} · {{ownerName}}</span>
+            </div>
+            <button type="button" data-action="activate" data-id="{{id}}">
+              <i class="fas fa-arrow-up-from-bracket"></i> {{localize "ACTORVAULT.Activate"}}
+            </button>
+          </article>
+          {{/each}}
+        </div>
       </div>
+      {{else}}
+      <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
+      {{/each}}
     </section>
   </div>
 </section>
