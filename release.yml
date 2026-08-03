@@ -1,0 +1,42 @@
+{
+  "id": "actor-vault",
+  "title": "Actor Vault",
+  "description": "Transactionally move player characters and persistent custom NPCs between the world and an Actor compendium while preserving their primary player owner.",
+  "version": "0.1.1",
+  "authors": [
+    {
+      "name": "Ryan Mizell"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14.365",
+    "maximum": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "5.3.3",
+          "verified": "5.3.3"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/actor-vault.js"
+  ],
+  "styles": [
+    "styles/actor-vault.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "socket": true
+}

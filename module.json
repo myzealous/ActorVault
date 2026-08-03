@@ -1,0 +1,13 @@
+{
+  "name": "actor-vault",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Foundry VTT v14 actor vault module",
+  "scripts": {
+    "validate": "node scripts/validate-package.mjs",
+    "build": "node scripts/build-release.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
