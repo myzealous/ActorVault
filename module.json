@@ -1,5 +1,6 @@
 {
   "id": "actor-vault",
+  "type": "module",
   "title": "Actor Vault",
   "description": "Transactionally move player characters and persistent custom NPCs between the world and an Actor compendium while preserving their primary player owner.",
   "version": "0.1.1",
@@ -38,5 +39,7 @@
       "path": "lang/en.json"
     }
   ],
-  "socket": true
+  "socket": true,
+  "manifest": "https://raw.githubusercontent.com/myzealous/ActorVault/main/module.json",
+  "download": "https://github.com/myzealous/ActorVault/archive/refs/heads/main.zip"
 }
