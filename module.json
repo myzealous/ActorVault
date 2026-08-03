@@ -3,50 +3,41 @@
   "type": "module",
   "title": "Actor Vault",
   "description": "Move player characters between the world and an Actor compendium while preserving ownership, with player resources, housing, Worldbreaker progression, calculated skill points, Skill Tree synchronization, and resource history.",
-  "version": "0.4.3",
-  "authors": [
-    {
-      "name": "Ryan Mizell"
-    }
-  ],
+  "version": "0.4.4",
+  "authors": [{ "name": "Ryan Mizell" }],
   "compatibility": {
     "minimum": "14",
     "verified": "14.365",
     "maximum": "14"
   },
   "relationships": {
-    "systems": [
-      {
-        "id": "dnd5e",
-        "type": "system",
-        "compatibility": {
-          "minimum": "5.3.3",
-          "verified": "5.3.3"
-        }
+    "systems": [{
+      "id": "dnd5e",
+      "type": "system",
+      "compatibility": {
+        "minimum": "5.3.3",
+        "verified": "5.3.3"
       }
-    ]
+    }]
   },
   "esmodules": [
     "scripts/actor-vault.js",
-    "scripts/resource-history.js",
     "scripts/progression.js",
     "scripts/skill-sync.js",
     "scripts/ux-patches.js",
-    "scripts/ux-hotfix.js"
+    "scripts/ui-fixes.js"
   ],
   "styles": [
     "styles/actor-vault.css",
     "styles/progression.css"
   ],
-  "languages": [
-    {
-      "lang": "en",
-      "name": "English",
-      "path": "lang/en.json"
-    }
-  ],
+  "languages": [{
+    "lang": "en",
+    "name": "English",
+    "path": "lang/en.json"
+  }],
   "socket": true,
   "url": "https://github.com/myzealous/ActorVault",
   "manifest": "https://github.com/myzealous/ActorVault/releases/latest/download/module.json",
-  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.4.3/actor-vault.zip"
+  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.4.4/actor-vault.zip"
 }
