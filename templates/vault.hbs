@@ -34,9 +34,13 @@
             <label class="actor-vault__owner-label">
               <span>Owner</span>
               <select data-owner-select data-actor-id="{{id}}">
-                <option value="">Unassigned</option>
+                {{#if ownerId}}
+                <option value="{{ownerId}}" selected>{{ownerName}}</option>
+                {{else}}
+                <option value="" selected>Unassigned</option>
+                {{/if}}
                 {{#each ../../users}}
-                <option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>
+                <option value="{{id}}">{{name}}</option>
                 {{/each}}
               </select>
             </label>
