@@ -1,0 +1,63 @@
+<section class="actor-vault">
+  <header class="actor-vault__toolbar">
+    <div>
+      <strong>{{title}}</strong>
+      <div class="hint">Only one copy of a managed actor exists: active in the world or stored in the vault.</div>
+    </div>
+    {{#if isGM}}
+    <label class="actor-vault__filter">Owner
+      <select data-action="filter-owner">
+        <option value="">All owners</option>
+        {{#each users}}
+        <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+        {{/each}}
+      </select>
+    </label>
+    {{/if}}
+  </header>
+
+  <div class="actor-vault__columns">
+    <section>
+      <h2>{{localize "ACTORVAULT.Active"}} <span class="count">{{active.length}}</span></h2>
+      <div class="actor-vault__list">
+        {{#each active}}
+        <article class="actor-vault__row" data-actor-id="{{id}}">
+          <img src="{{img}}" alt="" />
+          <div class="actor-vault__identity">
+            <strong>{{name}}</strong>
+            <span>{{type}} · {{ownerName}}</span>
+          </div>
+          {{#if ../isGM}}
+          <select class="actor-vault__owner" data-owner-for="{{id}}" title="Primary owner">
+            {{#each ../users}}
+            <option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+          {{/if}}
+          <button type="button" data-action="archive" data-id="{{id}}"><i class="fas fa-box-archive"></i> {{localize "ACTORVAULT.Archive"}}</button>
+        </article>
+        {{else}}
+        <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
+        {{/each}}
+      </div>
+    </section>
+
+    <section>
+      <h2>{{localize "ACTORVAULT.Stored"}} <span class="count">{{stored.length}}</span></h2>
+      <div class="actor-vault__list">
+        {{#each stored}}
+        <article class="actor-vault__row" data-pack-id="{{id}}">
+          <img src="{{img}}" alt="" />
+          <div class="actor-vault__identity">
+            <strong>{{name}}</strong>
+            <span>{{type}} · {{ownerName}}</span>
+          </div>
+          <button type="button" data-action="activate" data-id="{{id}}"><i class="fas fa-arrow-up-from-bracket"></i> {{localize "ACTORVAULT.Activate"}}</button>
+        </article>
+        {{else}}
+        <p class="actor-vault__empty">{{localize "ACTORVAULT.NoActors"}}</p>
+        {{/each}}
+      </div>
+    </section>
+  </div>
+</section>
