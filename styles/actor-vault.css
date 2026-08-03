@@ -1,9 +1,10 @@
-.actor-vault { padding: .75rem; }
-.actor-vault__toolbar { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin-bottom:.75rem; }
+.actor-vault { padding:.75rem; height:100%; min-height:0; overflow:auto; }
+.actor-vault__toolbar { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin:-.75rem -.75rem .75rem; padding:.75rem; background:var(--background); border-bottom:1px solid var(--color-border-light-primary); }
 .actor-vault__toolbar .hint { opacity:.75; font-size:.85em; margin-top:.25rem; }
 .actor-vault__totals { display:flex; gap:.75rem; font-size:.85em; opacity:.8; }
 .actor-vault__warning { margin-bottom:.75rem; padding:.6rem .75rem; border:1px solid var(--color-level-warning); border-radius:6px; }
-.actor-vault__columns { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.actor-vault__columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:start; }
+.actor-vault__columns > section { min-width:0; }
 .actor-vault h2 { font-size:1rem; margin:.25rem 0 .5rem; border-bottom:1px solid var(--color-border-light-primary); padding-bottom:.35rem; }
 .actor-vault__group { margin-bottom:.8rem; }
 .actor-vault__group h3 { margin:0 0 .35rem; padding:.3rem .45rem; font-size:.9rem; background:rgba(0,0,0,.08); border-radius:4px; }
@@ -17,7 +18,9 @@
 .actor-vault__owner-label { display:flex; flex-direction:column; gap:.15rem; font-size:.75em; }
 .actor-vault__owner-label select { width:100%; min-width:0; }
 .actor-vault__empty { opacity:.65; font-style:italic; padding:.5rem; }
-@media (max-width: 760px) {
+.actor-vault-open { width:100%; min-height:34px; height:auto; padding:.35rem .55rem; display:flex; align-items:center; justify-content:center; gap:.4rem; white-space:normal; line-height:1.1; }
+#actor-vault-app .window-content { min-height:0; overflow:hidden; }
+@media (max-width:760px) {
   .actor-vault__columns { grid-template-columns:1fr; }
   .actor-vault__toolbar { align-items:stretch; flex-direction:column; }
   .actor-vault__row, .actor-vault__row--stored { grid-template-columns:38px minmax(0,1fr) auto; }
