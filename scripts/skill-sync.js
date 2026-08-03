@@ -30,10 +30,52 @@ class ActorVaultSkillSync {
     return this.clamp(resources.housingTier, 0, 4);
   }
 
-  static getStatus(actor) {
+  static async getSpentPoints(skills) {
+    let spent = 0;
+    let stale = 0;
+
+    for (const entry of skills) {
+      if (!entry || typeof entry.uuid !== "string" || !entry.uuid.trim()) {
+        stale += 1;
+        continue;
+      }
+
+      let document = null;
+      try {
+        document = await fromUuid(entry.uuid);
+      } catch (error) {
+        console.warn(`${AVS_MODULE_ID} | Could not resolve Skill Tree UUID`, entry.uuid, error);
+      }
+
+      if (!document) {
+        stale += 1;
+        continue;
+      }
+
+      spent += Math.max(0, Math.trunc(Number(entry.points) || 1));
+    }
+
+    return { spent, stale };
+  }
+
+  static async getStatus(actor) {
     const record = foundry.utils.getProperty(actor, AVS_RECORD_PATH) || {};
     const ownerId = record.mainUserId || "";
-    const level = Math.min(this.actorLevel(actor) || Number(record.level) || 0, 12);
+    const rawLevel = this.actorLevel(actor) || Number(record.level) || 0;
+
+    if (rawLevel <= 0) {
+      return {
+        state: "ignored",
+        reason: "Actors without class levels are not part of the skill-point system.",
+        entitlement: 0,
+        spent: 0,
+        stale: 0,
+        current: null,
+        expected: null
+      };
+    }
+
+    const level = Math.min(rawLevel, 12);
     const housing = this.housingTier(ownerId);
     const worldbreaker = this.clamp(record.worldbreakerTier, 0, 3);
     const entitlement = level + housing + worldbreaker;
@@ -45,21 +87,26 @@ class ActorVaultSkillSync {
         reason: "Skill Tree data is missing or invalid.",
         entitlement,
         spent: null,
+        stale: 0,
         current: null,
         expected: null
       };
     }
 
-    const spent = skillData.skills.length;
+    const { spent, stale } = await this.getSpentPoints(skillData.skills);
     const current = Math.trunc(Number(skillData.skillPoints));
     const expected = entitlement - spent;
+    const staleNote = stale
+      ? ` Ignored ${stale} purchase${stale === 1 ? "" : "s"} from deleted or missing skill-tree pages.`
+      : "";
 
     if (expected < 0) {
       return {
         state: "error",
-        reason: `This actor has spent ${spent} points but is only entitled to ${entitlement}.`,
+        reason: `This actor has ${spent} valid spent points but is only entitled to ${entitlement}.${staleNote}`,
         entitlement,
         spent,
+        stale,
         current,
         expected
       };
@@ -68,9 +115,10 @@ class ActorVaultSkillSync {
     if (current > expected) {
       return {
         state: "error",
-        reason: `Current unspent points (${current}) exceed the correct amount (${expected}).`,
+        reason: `Current unspent points (${current}) exceed the correct amount (${expected}).${staleNote}`,
         entitlement,
         spent,
+        stale,
         current,
         expected
       };
@@ -79,9 +127,10 @@ class ActorVaultSkillSync {
     if (current === expected) {
       return {
         state: "current",
-        reason: "Skill points are already correct.",
+        reason: `Skill points are already correct.${staleNote}`,
         entitlement,
         spent,
+        stale,
         current,
         expected
       };
@@ -89,9 +138,10 @@ class ActorVaultSkillSync {
 
     return {
       state: "ready",
-      reason: `Ready to update unspent points from ${current} to ${expected}.`,
+      reason: `Ready to update unspent points from ${current} to ${expected}.${staleNote}`,
       entitlement,
       spent,
+      stale,
       current,
       expected
     };
@@ -108,7 +158,13 @@ class ActorVaultSkillSync {
 
   static async request(data) {
     if (game.user.isGM) return this.update(data, game.user.id);
-    if (!this.primaryGM()) throw new Error("An active GM is required.");
+
+    const actor = await this.resolveActor(data);
+    if (actor && actor.isOwner && !data.packActorId) {
+      return this.update(data, game.user.id);
+    }
+
+    if (!this.primaryGM()) throw new Error("An active GM is required to update a stored actor.");
 
     const requestId = foundry.utils.randomID(20);
     return new Promise((resolve, reject) => {
@@ -177,14 +233,12 @@ class ActorVaultSkillSync {
     if (!actor) throw new Error("Actor not found.");
     this.authorize(actor, requesterId);
 
-    const status = this.getStatus(actor);
-    if (status.state !== "ready") {
-      throw new Error(status.reason);
-    }
+    const status = await this.getStatus(actor);
+    if (status.state !== "ready") throw new Error(status.reason);
 
     await actor.update({ "flags.skill-tree.skillPoints": status.expected });
     return {
-      message: `${actor.name}: unspent skill points updated from ${status.current} to ${status.expected}.`
+      message: `${actor.name}: unspent skill points updated from ${status.current} to ${status.expected}.${status.stale ? ` Ignored ${status.stale} stale purchase${status.stale === 1 ? "" : "s"}.` : ""}`
     };
   }
 
@@ -196,7 +250,11 @@ class ActorVaultSkillSync {
     const pack = game.packs.get(packId);
 
     for (const row of root.querySelectorAll("[data-actor-id], [data-pack-id]")) {
+      row.querySelectorAll("[data-avs-sync]").forEach((button, index) => {
+        if (index > 0) button.remove();
+      });
       if (row.querySelector("[data-avs-sync]")) continue;
+
       const actorId = row.dataset.actorId || null;
       const packActorId = row.dataset.packId || null;
       const actor = actorId ? game.actors.get(actorId) : (packActorId && pack ? await pack.getDocument(packActorId) : null);
@@ -205,7 +263,9 @@ class ActorVaultSkillSync {
       const record = foundry.utils.getProperty(actor, AVS_RECORD_PATH) || {};
       if (!game.user.isGM && record.mainUserId !== game.user.id) continue;
 
-      const status = this.getStatus(actor);
+      const status = await this.getStatus(actor);
+      if (status.state === "ignored") continue;
+
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.avsSync = "true";
@@ -222,6 +282,13 @@ class ActorVaultSkillSync {
       const actionButton = row.querySelector('button[data-action="archive"], button[data-action="activate"]');
       if (progression) progression.insertAdjacentElement("afterend", button);
       else row.insertBefore(button, actionButton || null);
+
+      if (status.state === "error") {
+        const reason = document.createElement("small");
+        reason.className = "avs-skill-reason";
+        reason.textContent = status.reason;
+        button.insertAdjacentElement("afterend", reason);
+      }
 
       button.addEventListener("click", async () => {
         if (button.disabled) return;
@@ -243,7 +310,6 @@ Hooks.once("ready", () => {
   game.socket.on(AVS_SOCKET, payload => ActorVaultSkillSync.onSocket(payload));
 });
 
-Hooks.on("renderActorVaultApp", (app, element) => ActorVaultSkillSync.enhance(app, element));
 Hooks.on("renderApplicationV2", (app, element) => {
   if (app?.id === "actor-vault-app") ActorVaultSkillSync.enhance(app, element);
 });
