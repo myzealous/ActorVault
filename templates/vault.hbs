@@ -38,10 +38,10 @@
       </div>
       <h3>Magic Item Storage</h3>
       <div class="actor-vault__storage-grid">
-        <label><span>Slot 1</span><input type="text" name="s0" value="{{resources.storage.0}}"></label>
-        <label><span>Slot 2</span><input type="text" name="s1" value="{{resources.storage.1}}"></label>
-        <label><span>Slot 3</span><input type="text" name="s2" value="{{resources.storage.2}}"></label>
-        <label><span>Slot 4</span><input type="text" name="s3" value="{{resources.storage.3}}"></label>
+        <label><span>Slot 1</span><input type="text" name="s0" value="{{lookup resources.storage 0}}"></label>
+        <label><span>Slot 2</span><input type="text" name="s1" value="{{lookup resources.storage 1}}"></label>
+        <label><span>Slot 3</span><input type="text" name="s2" value="{{lookup resources.storage 2}}"></label>
+        <label><span>Slot 4</span><input type="text" name="s3" value="{{lookup resources.storage 3}}"></label>
       </div>
       <div class="actor-vault__resource-actions">
         <button type="button" data-action="save-resources"><i class="fas fa-floppy-disk"></i> Save Dashboard</button>
