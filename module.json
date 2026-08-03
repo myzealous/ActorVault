@@ -2,8 +2,8 @@
   "id": "actor-vault",
   "type": "module",
   "title": "Actor Vault",
-  "description": "Transactionally move player characters and persistent custom NPCs between the world and an Actor compendium while preserving their primary player owner.",
-  "version": "0.2.1",
+  "description": "Move player characters between the world and an Actor compendium while preserving ownership, with an integrated player resource dashboard.",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "Ryan Mizell"
@@ -27,8 +27,7 @@
     ]
   },
   "esmodules": [
-    "scripts/actor-vault.js",
-    "scripts/v14-compat.js"
+    "scripts/actor-vault.js"
   ],
   "styles": [
     "styles/actor-vault.css"
@@ -43,5 +42,5 @@
   "socket": true,
   "url": "https://github.com/myzealous/ActorVault",
   "manifest": "https://github.com/myzealous/ActorVault/releases/latest/download/module.json",
-  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.2.1/actor-vault.zip"
+  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.3.0/actor-vault.zip"
 }
