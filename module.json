@@ -22,18 +22,12 @@
   },
   "esmodules": [
     "scripts/actor-vault.js",
-    "scripts/progression.js",
-    "scripts/skill-sync.js",
-    "scripts/ux-patches.js",
-    "scripts/layout-v2.js",
-    "scripts/final-layout.js",
-    "scripts/checkout-flow.js"
+    "scripts/checkout-flow.js",
+    "scripts/dashboard-v3.js"
   ],
   "styles": [
     "styles/actor-vault.css",
-    "styles/progression.css",
-    "styles/layout-v2.css",
-    "styles/final-layout.css"
+    "styles/dashboard-v3.css"
   ],
   "languages": [{
     "lang": "en",
