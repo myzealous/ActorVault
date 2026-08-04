@@ -23,6 +23,19 @@
         <label><span>Housing Tier</span><select data-housing-tier><option value="0">None</option><option value="1">Homestead</option><option value="2">House</option><option value="3">Manor</option><option value="4">Estate</option></select></label>
         <div class="avd-save"><button type="button" data-action="save-resources"><i class="fas fa-floppy-disk"></i> Save Dashboard</button></div>
       </div>
+
+      <section class="avd-rest-panel" data-long-rest-panel>
+        <div class="avd-rest-panel__summary">
+          <div><span>Long Rest Cost</span><strong data-long-rest-cost>1</strong></div>
+          <div><span>Cost After Discount</span><strong data-long-rest-effective>1</strong></div>
+          <label class="avd-quick-recovery"><input type="checkbox" data-quick-recovery><span>Quick Recovery applies</span></label>
+        </div>
+        <div class="avd-rest-panel__actions">
+          <button type="button" data-long-rest><i class="fas fa-bed"></i> Long Rest</button>
+          <button type="button" data-no-long-rest><i class="fas fa-arrow-down"></i> Did Not Long Rest</button>
+        </div>
+      </section>
+
       <div class="avd-storage-heading"><h3>Magic Item Protection</h3><span>Housing unlocks up to three protected slots.</span></div>
       <div class="avd-storage-grid">
         <label data-storage-slot><span>Protected Slot 1</span><input type="text" name="s0" value="{{lookup resources.storage 0}}"></label>
