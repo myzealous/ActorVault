@@ -2,8 +2,8 @@
   "id": "actor-vault",
   "type": "module",
   "title": "Actor Vault",
-  "description": "Checkout-style player character vault with player imports, GM import/export controls, resources, housing, Worldbreaker progression, Skill Tree synchronization, and resource history.",
-  "version": "0.5.7",
+  "description": "Checkout-style player character vault with player imports, GM import/export controls, resources, housing, long-rest credits, Worldbreaker progression, Skill Tree synchronization, and resource history.",
+  "version": "1.0.0",
   "authors": [{ "name": "Ryan Mizell" }],
   "compatibility": {
     "minimum": "14",
@@ -30,12 +30,14 @@
     "scripts/owner-housing-fix.js",
     "scripts/role-agnostic-owners.js",
     "scripts/gm-import-worldbreaker.js",
-    "scripts/hard-refresh.js"
+    "scripts/hard-refresh.js",
+    "scripts/long-rest-v1.js"
   ],
   "styles": [
     "styles/actor-vault.css",
     "styles/dashboard-v3.css",
-    "styles/checkout-v3.css"
+    "styles/checkout-v3.css",
+    "styles/long-rest-v1.css"
   ],
   "languages": [{
     "lang": "en",
@@ -45,5 +47,5 @@
   "socket": true,
   "url": "https://github.com/myzealous/ActorVault",
   "manifest": "https://github.com/myzealous/ActorVault/releases/latest/download/module.json",
-  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.5.7/actor-vault.zip"
+  "download": "https://github.com/myzealous/ActorVault/releases/download/v1.0.0/actor-vault.zip"
 }
