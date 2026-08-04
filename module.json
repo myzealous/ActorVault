@@ -31,7 +31,8 @@
     "scripts/role-agnostic-owners.js",
     "scripts/gm-import-worldbreaker.js",
     "scripts/hard-refresh.js",
-    "scripts/long-rest-v2.js"
+    "scripts/long-rest-v2.js",
+    "scripts/long-rest-history-v2.js"
   ],
   "styles": [
     "styles/actor-vault.css",
