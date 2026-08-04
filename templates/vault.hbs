@@ -4,7 +4,7 @@
       <h1>{{title}}</h1>
       <p>Stored characters remain in the vault. Players import a temporary active copy; GMs export active copies back before a session.</p>
     </div>
-    <div class="avd-header__actions">
+    <div class="avd-header__actions actor-vault__toolbar">
       <div class="avd-counts"><span>{{activeCount}} active</span><span>{{storedCount}} stored</span></div>
       <button type="button" data-history-button><i class="fas fa-clock-rotate-left"></i> {{#if isGM}}Resource History{{else}}My History{{/if}}</button>
     </div>
@@ -12,15 +12,9 @@
 
   <section class="avd-card avd-dashboard">
     <div class="avd-card__heading">
-      <div>
-        <h2>Player Dashboard</h2>
-        <p>Account resources shared by all characters.</p>
-      </div>
-      {{#if isGM}}
-      <label class="avd-player-select"><span>Player</span><select data-resource-user>{{#each users}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
-      {{else}}<strong>{{resourceUserName}}</strong>{{/if}}
+      <div><h2>Player Dashboard</h2><p>Account resources shared by all characters.</p></div>
+      {{#if isGM}}<label class="avd-player-select"><span>Player</span><select data-resource-user>{{#each users}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>{{else}}<strong>{{resourceUserName}}</strong>{{/if}}
     </div>
-
     <form data-resource-form data-user-id="{{resourceUserId}}">
       <div class="avd-resource-grid">
         <label><span>Gold</span><input type="number" name="gold" value="{{resources.gold}}" step="1"></label>
@@ -29,7 +23,6 @@
         <label><span>Housing Tier</span><select data-housing-tier><option value="0">None</option><option value="1">Homestead</option><option value="2">House</option><option value="3">Manor</option><option value="4">Estate</option></select></label>
         <div class="avd-save"><button type="button" data-action="save-resources"><i class="fas fa-floppy-disk"></i> Save Dashboard</button></div>
       </div>
-
       <div class="avd-storage-heading"><h3>Magic Item Protection</h3><span>Housing unlocks up to three protected slots.</span></div>
       <div class="avd-storage-grid">
         <label data-storage-slot><span>Protected Slot 1</span><input type="text" name="s0" value="{{lookup resources.storage 0}}"></label>
@@ -46,41 +39,33 @@
     <div class="avd-card avd-active">
       <div class="avd-card__heading"><div><h2>Active Characters</h2><p>Characters currently checked out into the world.</p></div></div>
       {{#each activeGroups}}
-      <section class="avd-group">
-        <h3>{{name}}</h3>
-        <div class="avd-list">
-          {{#each actors}}
-          <article class="avd-row avd-row--active" data-actor-id="{{id}}">
-            <img class="avd-portrait" src="{{img}}" alt="">
-            <div class="avd-identity"><strong>{{name}}</strong><span>{{type}} · {{ownerName}}</span><div class="avd-skill-summary" data-skill-summary></div></div>
-            {{#if ../../isGM}}
-            <label class="avd-owner"><span>Owner</span><select data-owner-select data-actor-id="{{id}}"><option value="">Unassigned</option>{{#each ../../users}}<option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
-            {{/if}}
-            <div class="avd-progression" data-progression-slot></div>
-            <div class="avd-sync-slot" data-sync-slot></div>
-            {{#if ../../isGM}}<button class="avd-primary-action" type="button" data-action="archive" data-id="{{id}}"><i class="fas fa-box-archive"></i> Export</button>{{/if}}
-          </article>
-          {{/each}}
-        </div>
-      </section>
+      <section class="avd-group"><h3>{{name}}</h3><div class="avd-list">
+        {{#each actors}}
+        <article class="avd-row avd-row--active" data-actor-id="{{id}}">
+          <img class="avd-portrait" src="{{img}}" alt="">
+          <div class="avd-identity"><strong>{{name}}</strong><span>{{type}} · {{ownerName}}</span><div class="avd-skill-summary" data-skill-summary></div></div>
+          {{#if ../../isGM}}<label class="avd-owner"><span>Owner</span><select data-owner-select data-actor-id="{{id}}"><option value="">Unassigned</option>{{#each ../../users}}<option value="{{id}}" {{#if (eq id ../ownerId)}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>{{/if}}
+          <div class="avd-progression" data-progression-slot></div>
+          <div class="avd-sync-slot" data-sync-slot></div>
+          {{#if ../../isGM}}<button class="avd-primary-action" type="button" data-action="archive" data-id="{{id}}"><i class="fas fa-box-archive"></i> Export</button>{{/if}}
+        </article>
+        {{/each}}
+      </div></section>
       {{else}}<p class="avd-empty">No active characters.</p>{{/each}}
     </div>
 
     <div class="avd-card avd-stored">
       <div class="avd-card__heading"><div><h2>Stored Characters</h2><p>Permanent vault copies available for import.</p></div></div>
       {{#each storedGroups}}
-      <section class="avd-group">
-        <h3>{{name}}</h3>
-        <div class="avd-list">
-          {{#each actors}}
-          <article class="avd-row avd-row--stored" data-pack-id="{{id}}">
-            <img class="avd-portrait" src="{{img}}" alt="">
-            <div class="avd-identity"><strong>{{name}}</strong><span>{{ownerName}}</span></div>
-            <button class="avd-primary-action" type="button" data-action="activate" data-id="{{id}}"><i class="fas fa-arrow-up-from-bracket"></i> Import</button>
-          </article>
-          {{/each}}
-        </div>
-      </section>
+      <section class="avd-group"><h3>{{name}}</h3><div class="avd-list">
+        {{#each actors}}
+        <article class="avd-row avd-row--stored" data-pack-id="{{id}}">
+          <img class="avd-portrait" src="{{img}}" alt="">
+          <div class="avd-identity"><strong>{{name}}</strong><span>{{ownerName}}</span></div>
+          <button class="avd-primary-action" type="button" data-action="activate" data-id="{{id}}"><i class="fas fa-arrow-up-from-bracket"></i> Import</button>
+        </article>
+        {{/each}}
+      </div></section>
       {{else}}<p class="avd-empty">No stored characters.</p>{{/each}}
     </div>
   </section>
