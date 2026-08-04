@@ -1,0 +1,20 @@
+.avfl-layout .avfl-active-row { grid-template-columns:42px minmax(190px,1.35fr) minmax(145px,.75fr) minmax(165px,.85fr) minmax(145px,.75fr) minmax(125px,auto) !important; }
+.avfl-layout .avfl-npc-row { grid-template-columns:42px minmax(190px,1.35fr) minmax(145px,.75fr) minmax(165px,.85fr) minmax(145px,.75fr) minmax(125px,auto) !important; }
+.avfl-layout .avfl-npc-row .actor-vault__owner-label { grid-column:3; }
+.avfl-layout .avfl-npc-row button[data-action="archive"] { grid-column:6; width:100%; min-height:2rem; }
+.avfl-layout .avfl-stored-row { grid-template-columns:42px minmax(0,1fr) minmax(125px,auto) !important; }
+.avfl-layout .avfl-stored-owner { opacity:.75; font-size:.82em; }
+.avfl-layout .avfl-skill-summary { display:flex; flex-direction:column; margin-top:.15rem; font-size:.78rem; line-height:1.15; }
+.avfl-layout .avfl-skill-summary .avp-skill-points { font-weight:600; }
+.avfl-layout .avfl-skill-summary .avp-breakdown { opacity:.72; }
+.avfl-layout .avp-progression { display:grid; grid-template-columns:1fr; gap:.2rem; }
+.avfl-layout .avfl-worldbreaker-label { font-size:.75rem; font-weight:700; opacity:.95; }
+.avfl-layout .actor-vault__resource-actions { align-self:end; margin:0; }
+.avfl-layout .actor-vault__resource-actions button { width:100%; min-height:2rem; }
+@media (max-width:900px) {
+  .avfl-layout .avfl-active-row,
+  .avfl-layout .avfl-npc-row,
+  .avfl-layout .avfl-stored-row { grid-template-columns:38px minmax(0,1fr) auto !important; }
+  .avfl-layout .avfl-npc-row .actor-vault__owner-label,
+  .avfl-layout .avfl-npc-row button[data-action="archive"] { grid-column:auto; }
+}
