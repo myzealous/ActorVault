@@ -1,0 +1,11 @@
+.avd-row--active button[data-action="archive"] { display: none !important; }
+.avd-row--active { grid-template-columns: 42px minmax(170px, 1.4fr) minmax(135px, .85fr) minmax(135px, .85fr) minmax(130px, .8fr); }
+.avd-row--active:not(:has(.avd-owner)) { grid-template-columns: 42px minmax(190px, 1.55fr) minmax(140px, .9fr) minmax(135px, .8fr); }
+.avd-row--active.avd-row--npc { grid-template-columns: 42px minmax(190px, 1.5fr) minmax(150px, .9fr); }
+.avd-row--active.avd-row--npc:not(:has(.avd-owner)) { grid-template-columns: 42px minmax(0, 1fr); }
+.avd-row--active.avd-row--npc .avd-owner { grid-column: 3; }
+.avd-row--stored .avd-primary-action { width: 100%; }
+@media (max-width: 820px) {
+  .avd-row--active, .avd-row--active:not(:has(.avd-owner)), .avd-row--active.avd-row--npc, .avd-row--active.avd-row--npc:not(:has(.avd-owner)) { grid-template-columns: 42px minmax(0, 1fr) minmax(105px, auto); }
+  .avd-row--active.avd-row--npc .avd-owner { grid-column: 2 / 4; }
+}
