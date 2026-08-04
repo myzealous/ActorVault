@@ -18,10 +18,19 @@ class ActorVaultLayoutV2 {
     keep.innerHTML = `<i class="fas fa-clock-rotate-left"></i> ${game.user.isGM ? "Resource History" : "My Resource History"}`;
   }
 
+  static moveSaveButton(root) {
+    const grid = root.querySelector(".actor-vault__resource-grid");
+    const actions = root.querySelector(".actor-vault__resource-actions");
+    if (!grid || !actions) return;
+    actions.classList.add("avl-dashboard-save");
+    grid.append(actions);
+  }
+
   static compactStored(row) {
     row.classList.add("avl-stored-row");
-    row.querySelectorAll("[data-avp-progression], [data-avs-sync], .avs-skill-reason, .avx-skill-reason, .actor-vault__owner-label")
-      .forEach(node => node.remove());
+    row.querySelectorAll(
+      "[data-avp-progression], [data-avs-sync], .avs-skill-reason, .avx-skill-reason, .actor-vault__owner-label, .avl-skill-summary"
+    ).forEach(node => node.remove());
 
     const identity = row.querySelector(".actor-vault__identity");
     if (!identity) return;
@@ -84,23 +93,21 @@ class ActorVaultLayoutV2 {
     this.moveSkillSummary(row, progression);
 
     const select = progression.querySelector("select");
-    let label = progression.querySelector(".avl-worldbreaker-label");
-    if (!label) {
-      label = document.createElement("span");
-      label.className = "avl-worldbreaker-label";
-      label.textContent = "Worldbreaker";
-    }
+    progression.querySelectorAll(".avl-worldbreaker-label, .avuf-worldbreaker-label").forEach(node => node.remove());
+    const label = document.createElement("span");
+    label.className = "avl-worldbreaker-label";
+    label.textContent = "Worldbreaker";
     if (select) select.before(label);
   }
 
   static clean(app, element) {
     const root = this.root(element, app);
-    if (!root || this.cleaning || root.dataset.avlCleaned === "true") return;
+    if (!root || this.cleaning) return;
     this.cleaning = true;
-    root.dataset.avlCleaned = "true";
     try {
       root.classList.add("avl-layout-v2");
       this.historyButton(root);
+      this.moveSaveButton(root);
 
       for (const row of root.querySelectorAll("[data-pack-id]")) this.compactStored(row);
       for (const row of root.querySelectorAll("[data-actor-id]")) this.cleanActive(row);
@@ -115,5 +122,7 @@ class ActorVaultLayoutV2 {
 }
 
 Hooks.on("renderApplicationV2", (app, element) => {
-  if (app?.id === "actor-vault-app") queueMicrotask(() => ActorVaultLayoutV2.clean(app, element));
+  if (app?.id !== "actor-vault-app") return;
+  queueMicrotask(() => ActorVaultLayoutV2.clean(app, element));
+  setTimeout(() => ActorVaultLayoutV2.clean(app, app.element), 150);
 });
