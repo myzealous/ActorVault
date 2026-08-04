@@ -95,8 +95,9 @@ class ActorVaultLayoutV2 {
 
   static clean(app, element) {
     const root = this.root(element, app);
-    if (!root || this.cleaning) return;
+    if (!root || this.cleaning || root.dataset.avlCleaned === "true") return;
     this.cleaning = true;
+    root.dataset.avlCleaned = "true";
     try {
       root.classList.add("avl-layout-v2");
       this.historyButton(root);
@@ -106,12 +107,6 @@ class ActorVaultLayoutV2 {
 
       if ((app?.position?.width || 0) < 1180) {
         app.setPosition?.({ width: 1240, height: Math.max(820, app.position?.height || 0) });
-      }
-
-      if (!root.dataset.avlObserved) {
-        root.dataset.avlObserved = "true";
-        const observer = new MutationObserver(() => queueMicrotask(() => this.clean(app, root)));
-        observer.observe(root, { childList: true, subtree: true });
       }
     } finally {
       this.cleaning = false;
