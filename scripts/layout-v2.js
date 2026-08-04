@@ -1,7 +1,6 @@
 const AVL_MODULE_ID = "actor-vault";
 
 class ActorVaultLayoutV2 {
-  static observer = null;
   static cleaning = false;
 
   static root(element, app) {
@@ -25,18 +24,40 @@ class ActorVaultLayoutV2 {
       .forEach(node => node.remove());
 
     const identity = row.querySelector(".actor-vault__identity");
-    if (identity) {
-      const ownerName = identity.querySelector("span")?.textContent?.split("·").at(-1)?.trim() || "";
-      let owner = row.querySelector(".avl-stored-owner");
-      if (!owner) {
-        owner = document.createElement("span");
-        owner.className = "avl-stored-owner";
-        identity.append(owner);
-      }
-      owner.textContent = ownerName;
-      const old = identity.querySelector("span:not(.avl-stored-owner)");
-      old?.remove();
+    if (!identity) return;
+    const originalMeta = identity.querySelector("span:not(.avl-stored-owner)");
+    const ownerName = originalMeta?.textContent?.split("·").at(-1)?.trim() || "";
+    originalMeta?.remove();
+
+    let owner = identity.querySelector(".avl-stored-owner");
+    if (!owner) {
+      owner = document.createElement("span");
+      owner.className = "avl-stored-owner";
+      identity.append(owner);
     }
+    owner.textContent = ownerName;
+  }
+
+  static moveSkillSummary(row, progression) {
+    const identity = row.querySelector(".actor-vault__identity");
+    if (!identity || !progression) return;
+
+    const points = progression.querySelector(".avp-skill-points");
+    const breakdown = progression.querySelector(".avp-breakdown");
+    if (!points && !breakdown) return;
+
+    let summary = identity.querySelector(".avl-skill-summary");
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.className = "avl-skill-summary";
+      identity.append(summary);
+    }
+
+    if (points) {
+      points.innerHTML = points.innerHTML.replace(/\s*\/\s*19/g, "");
+      summary.append(points);
+    }
+    if (breakdown) summary.append(breakdown);
   }
 
   static cleanActive(row) {
@@ -46,26 +67,30 @@ class ActorVaultLayoutV2 {
     syncButtons.slice(1).forEach(node => node.remove());
     row.querySelectorAll(".avs-skill-reason, .avx-skill-reason").forEach(node => node.remove());
 
-    const progression = row.querySelector("[data-avp-progression]");
-    if (progression) {
-      const select = progression.querySelector("select");
-      if (select && !progression.querySelector(".avl-worldbreaker-label")) {
-        const label = document.createElement("span");
-        label.className = "avl-worldbreaker-label";
-        label.textContent = "Worldbreaker";
-        select.before(label);
-      }
-      const points = progression.querySelector(".avp-skill-points");
-      if (points) points.innerHTML = points.innerHTML.replace(/\s*\/\s*19/g, "");
-    }
-
     const identity = row.querySelector(".actor-vault__identity");
     const isNpc = identity?.querySelector("span")?.textContent?.trim().toLowerCase().startsWith("npc");
     row.classList.toggle("avl-npc-row", Boolean(isNpc));
+
     if (isNpc) {
       row.querySelectorAll("[data-avp-progression], [data-avs-sync], .avs-skill-reason, .avx-skill-reason")
         .forEach(node => node.remove());
+      identity?.querySelector(".avl-skill-summary")?.remove();
+      return;
     }
+
+    const progression = row.querySelector("[data-avp-progression]");
+    if (!progression) return;
+
+    this.moveSkillSummary(row, progression);
+
+    const select = progression.querySelector("select");
+    let label = progression.querySelector(".avl-worldbreaker-label");
+    if (!label) {
+      label = document.createElement("span");
+      label.className = "avl-worldbreaker-label";
+      label.textContent = "Worldbreaker";
+    }
+    if (select) select.before(label);
   }
 
   static clean(app, element) {
@@ -79,7 +104,9 @@ class ActorVaultLayoutV2 {
       for (const row of root.querySelectorAll("[data-pack-id]")) this.compactStored(row);
       for (const row of root.querySelectorAll("[data-actor-id]")) this.cleanActive(row);
 
-      if (app?.position?.width < 1180) app.setPosition?.({ width: 1240, height: Math.max(800, app.position?.height || 0) });
+      if ((app?.position?.width || 0) < 1180) {
+        app.setPosition?.({ width: 1240, height: Math.max(820, app.position?.height || 0) });
+      }
 
       if (!root.dataset.avlObserved) {
         root.dataset.avlObserved = "true";
