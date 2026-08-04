@@ -1,0 +1,16 @@
+.avd-character-rest {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: minmax(180px, .8fr) minmax(260px, 1.2fr);
+  gap: .65rem;
+  align-items: center;
+  padding-top: .45rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.avlr2-summary { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.avlr2-summary label { display: flex; align-items: center; gap: .4rem; }
+.avlr2-summary input { width: auto; }
+.avlr2-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+@media (max-width: 820px) {
+  .avd-character-rest { grid-column: 1 / -1; grid-template-columns: 1fr; }
+}
