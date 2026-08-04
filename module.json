@@ -23,11 +23,13 @@
   "esmodules": [
     "scripts/actor-vault.js",
     "scripts/checkout-flow.js",
-    "scripts/dashboard-v3.js"
+    "scripts/dashboard-v3.js",
+    "scripts/resource-save-v3.js"
   ],
   "styles": [
     "styles/actor-vault.css",
-    "styles/dashboard-v3.css"
+    "styles/dashboard-v3.css",
+    "styles/checkout-v3.css"
   ],
   "languages": [{
     "lang": "en",
