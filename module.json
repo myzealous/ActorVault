@@ -3,7 +3,7 @@
   "type": "module",
   "title": "Actor Vault",
   "description": "Move player characters between the world and an Actor compendium while preserving ownership, with player resources, housing, Worldbreaker progression, calculated skill points, Skill Tree synchronization, and resource history.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "authors": [{ "name": "Ryan Mizell" }],
   "compatibility": {
     "minimum": "14",
@@ -25,11 +25,12 @@
     "scripts/progression.js",
     "scripts/skill-sync.js",
     "scripts/ux-patches.js",
-    "scripts/ui-fixes.js"
+    "scripts/layout-v2.js"
   ],
   "styles": [
     "styles/actor-vault.css",
-    "styles/progression.css"
+    "styles/progression.css",
+    "styles/layout-v2.css"
   ],
   "languages": [{
     "lang": "en",
@@ -39,5 +40,5 @@
   "socket": true,
   "url": "https://github.com/myzealous/ActorVault",
   "manifest": "https://github.com/myzealous/ActorVault/releases/latest/download/module.json",
-  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.4.5/actor-vault.zip"
+  "download": "https://github.com/myzealous/ActorVault/releases/download/v0.4.6/actor-vault.zip"
 }
