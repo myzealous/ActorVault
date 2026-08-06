@@ -1,11 +1,8 @@
 const AVC_MODULE_ID = "actor-vault";
 const AVC_RECORD_PATH = "flags.actor-vault.record";
 const AVC_PLAYERS_FOLDER = "Players";
-const AVC_SOCKET = `module.${AVC_MODULE_ID}`;
 
 class ActorVaultCheckoutFlow {
-  static pending = new Map();
-
   static pack() {
     return game.packs.get(game.settings.get(AVC_MODULE_ID, "packId"));
   }
@@ -61,72 +58,7 @@ class ActorVaultCheckoutFlow {
     return vaultId ? game.actors.find(actor => this.record(actor).vaultId === vaultId) || null : null;
   }
 
-  static primaryGM() {
-    return game.users
-      .filter(user => user.active && user.isGM)
-      .sort((a, b) => a.id.localeCompare(b.id))[0] || null;
-  }
-
-  static async requestImport(packActorId) {
-    if (game.user.isGM) return this.importStored(packActorId, game.user.id);
-
-    const gm = this.primaryGM();
-    if (!gm) throw new Error("Actor Vault requires an active GM to import a character.");
-
-    const requestId = foundry.utils.randomID(20);
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(requestId);
-        reject(new Error("Actor Vault import request timed out."));
-      }, 20000);
-
-      this.pending.set(requestId, { resolve, reject, timeout });
-      game.socket.emit(AVC_SOCKET, {
-        kind: "checkoutImportRequest",
-        requestId,
-        packActorId,
-        requesterId: game.user.id
-      });
-    });
-  }
-
-  static async onSocket(payload) {
-    if (!payload || typeof payload !== "object") return;
-
-    if (payload.kind === "checkoutImportResponse" && payload.targetUserId === game.user.id) {
-      const pending = this.pending.get(payload.requestId);
-      if (!pending) return;
-
-      clearTimeout(pending.timeout);
-      this.pending.delete(payload.requestId);
-      if (payload.ok) pending.resolve(payload.result);
-      else pending.reject(new Error(payload.error || "Actor Vault import failed."));
-      return;
-    }
-
-    if (payload.kind !== "checkoutImportRequest") return;
-    if (!game.user.isGM || game.user.id !== this.primaryGM()?.id) return;
-
-    let response;
-    try {
-      response = {
-        ok: true,
-        result: await this.importStored(payload.packActorId, payload.requesterId)
-      };
-    } catch (error) {
-      console.error(`${AVC_MODULE_ID} | Checkout import request failed`, error);
-      response = { ok: false, error: error.message };
-    }
-
-    game.socket.emit(AVC_SOCKET, {
-      kind: "checkoutImportResponse",
-      requestId: payload.requestId,
-      targetUserId: payload.requesterId,
-      ...response
-    });
-  }
-
-  static async importStored(packActorId, requesterId = game.user.id) {
+  static async importStored(packActorId) {
     const pack = this.pack();
     if (!pack) throw new Error("Actor Vault compendium not found.");
 
@@ -136,9 +68,7 @@ class ActorVaultCheckoutFlow {
     const record = this.record(stored);
     if (!record.vaultId || !record.mainUserId) throw new Error("Stored actor is missing vault metadata.");
 
-    const requester = game.users.get(requesterId);
-    if (!requester) throw new Error("The requesting user no longer exists.");
-    if (!requester.isGM && record.mainUserId !== requester.id) {
+    if (!game.user.isGM && record.mainUserId !== game.user.id) {
       throw new Error("You may only import your own characters.");
     }
 
@@ -159,9 +89,14 @@ class ActorVaultCheckoutFlow {
       updatedAt: Date.now()
     });
 
-    const [actor] = await Actor.implementation.createDocuments([data], { keepId: false });
-    if (!actor) throw new Error("The world actor could not be created.");
+    let actor;
+    try {
+      [actor] = await Actor.implementation.createDocuments([data], { keepId: false });
+    } catch (error) {
+      throw new Error(`Foundry denied the actor import. The user role needs permission to create Actors. ${error.message}`);
+    }
 
+    if (!actor) throw new Error("The world actor could not be created.");
     return { message: `${actor.name} imported. The vault copy was retained.` };
   }
 
@@ -275,7 +210,7 @@ class ActorVaultCheckoutFlow {
     event.stopImmediatePropagation();
     button.disabled = true;
     try {
-      const result = await this.requestImport(button.dataset.id);
+      const result = await this.importStored(button.dataset.id);
       ui.notifications.info(result.message);
       await app.render({ force: true });
     } catch (error) {
@@ -336,10 +271,6 @@ class ActorVaultCheckoutFlow {
     }
   }
 }
-
-Hooks.once("ready", () => {
-  game.socket.on(AVC_SOCKET, payload => ActorVaultCheckoutFlow.onSocket(payload));
-});
 
 Hooks.on("renderApplicationV2", (app, element) => {
   if (app?.id === "actor-vault-app") {
