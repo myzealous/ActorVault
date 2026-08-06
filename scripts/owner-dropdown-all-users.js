@@ -2,9 +2,8 @@ const AVOD_MODULE_ID = "actor-vault";
 const AVOD_RECORD_PATH = "flags.actor-vault.record";
 
 class ActorVaultOwnerDropdownAllUsers {
-  static root(app, element) {
-    return element instanceof HTMLElement ? element : element?.[0] || app?.element || null;
-  }
+  static observer = null;
+  static repairQueued = false;
 
   static users() {
     return [...game.users]
@@ -46,7 +45,12 @@ class ActorVaultOwnerDropdownAllUsers {
     });
   }
 
-  static rebuildSelect(select, actor, app) {
+  static hasAllUsers(select) {
+    const optionIds = new Set([...select.options].map(option => option.value));
+    return this.users().every(user => optionIds.has(user.id));
+  }
+
+  static rebuildSelect(select, actor) {
     const currentOwnerId = this.record(actor).mainUserId || select.value || "";
     const replacement = select.cloneNode(false);
 
@@ -88,7 +92,8 @@ class ActorVaultOwnerDropdownAllUsers {
       try {
         await this.assign(actor, ownerId);
         ui.notifications.info(`${actor.name} is now assigned to ${game.users.get(ownerId)?.name}.`);
-        await app.render({ force: true });
+        const app = foundry.applications.instances.get("actor-vault-app");
+        await app?.render({ force: true });
       } catch (error) {
         console.error(`${AVOD_MODULE_ID} | Owner assignment failed`, error);
         ui.notifications.error(error.message);
@@ -98,29 +103,52 @@ class ActorVaultOwnerDropdownAllUsers {
     }, true);
   }
 
-  static repair(app, element) {
+  static repair() {
     if (!game.user.isGM) return;
 
-    const root = this.root(app, element);
+    const root = document.querySelector("#actor-vault-app");
     if (!root) return;
 
     for (const select of root.querySelectorAll("select[data-owner-select]")) {
-      if (select.dataset.avodBound === "true") continue;
+      if (this.hasAllUsers(select) && select.dataset.avodBound === "true") continue;
 
       const row = select.closest("[data-actor-id]");
       const actorId = select.dataset.actorId || row?.dataset.actorId;
       const actor = game.actors.get(actorId);
       if (!actor) continue;
 
-      this.rebuildSelect(select, actor, app);
+      this.rebuildSelect(select, actor);
+    }
+  }
+
+  static queueRepair() {
+    if (this.repairQueued) return;
+    this.repairQueued = true;
+    queueMicrotask(() => {
+      this.repairQueued = false;
+      this.repair();
+    });
+  }
+
+  static watch() {
+    if (!game.user.isGM) return;
+
+    this.observer?.disconnect();
+    this.observer = new MutationObserver(() => this.queueRepair());
+    this.observer.observe(document.body, { childList: true, subtree: true });
+
+    for (const delay of [0, 50, 150, 350, 750, 1500]) {
+      setTimeout(() => this.repair(), delay);
     }
   }
 }
 
-Hooks.on("renderApplicationV2", (app, element) => {
-  if (app?.id !== "actor-vault-app") return;
+Hooks.once("ready", () => ActorVaultOwnerDropdownAllUsers.watch());
 
-  for (const delay of [0, 50, 150, 350, 750]) {
-    setTimeout(() => ActorVaultOwnerDropdownAllUsers.repair(app, element), delay);
+Hooks.on("renderApplicationV2", app => {
+  if (app?.id !== "actor-vault-app") return;
+  ActorVaultOwnerDropdownAllUsers.queueRepair();
+  for (const delay of [50, 150, 350, 750]) {
+    setTimeout(() => ActorVaultOwnerDropdownAllUsers.repair(), delay);
   }
 });
