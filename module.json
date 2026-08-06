@@ -3,7 +3,7 @@
   "type": "module",
   "title": "Actor Vault",
   "description": "Checkout-style player character vault with player imports, GM import/export controls, resources, housing, per-character long-rest credits, Worldbreaker progression, Skill Tree synchronization, and resource history.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "authors": [{ "name": "Ryan Mizell" }],
   "compatibility": {
     "minimum": "14",
@@ -50,5 +50,5 @@
   "socket": true,
   "url": "https://github.com/myzealous/ActorVault",
   "manifest": "https://github.com/myzealous/ActorVault/releases/latest/download/module.json",
-  "download": "https://github.com/myzealous/ActorVault/releases/download/v1.0.3/actor-vault.zip"
+  "download": "https://github.com/myzealous/ActorVault/releases/download/v1.0.4/actor-vault.zip"
 }
