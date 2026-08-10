@@ -12,6 +12,10 @@ function vaultIsOpen() {
   return Boolean(app && (app.rendered || document.getElementById(APP_ID)));
 }
 
+function localChange(userId) {
+  return !userId || userId === game.user.id;
+}
+
 function scheduleVaultRefresh(delay = 350) {
   if (!vaultIsOpen()) return;
   clearTimeout(refreshTimer);
@@ -46,8 +50,8 @@ function managedActor(actor) {
   return false;
 }
 
-Hooks.on("updateActor", (actor, changes) => {
-  if (!managedActor(actor)) return;
+Hooks.on("updateActor", (actor, changes, _options, userId) => {
+  if (!localChange(userId) || !managedActor(actor)) return;
   if (
     foundry.utils.hasProperty(changes, "flags.skill-tree") ||
     foundry.utils.hasProperty(changes, "flags.actor-vault") ||
@@ -56,15 +60,16 @@ Hooks.on("updateActor", (actor, changes) => {
   ) scheduleVaultRefresh();
 });
 
-Hooks.on("createActor", actor => {
-  if (managedActor(actor)) scheduleVaultRefresh(450);
+Hooks.on("createActor", (actor, _options, userId) => {
+  if (localChange(userId) && managedActor(actor)) scheduleVaultRefresh(450);
 });
 
-Hooks.on("deleteActor", actor => {
-  if (managedActor(actor)) scheduleVaultRefresh(450);
+Hooks.on("deleteActor", (actor, _options, userId) => {
+  if (localChange(userId) && managedActor(actor)) scheduleVaultRefresh(450);
 });
 
-Hooks.on("updateUser", (_user, changes) => {
+Hooks.on("updateUser", (_user, changes, _options, userId) => {
+  if (!localChange(userId)) return;
   if (
     foundry.utils.hasProperty(changes, "flags.world.metaResources") ||
     foundry.utils.hasProperty(changes, "flags.world.metaResourcesHistory")
