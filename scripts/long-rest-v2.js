@@ -12,6 +12,11 @@ class ActorVaultLongRestV2 {
     return Math.max(0, Math.min(4, Math.trunc(Number(value) || 0)));
   }
 
+  static clampCost(value, quickRecovery = false) {
+    const minimum = quickRecovery ? 0 : 1;
+    return Math.max(minimum, Math.min(4, Math.trunc(Number(value) || 0)));
+  }
+
   static actorLevel(actor) {
     return [...actor.items]
       .filter(item => item.type === "class")
@@ -20,9 +25,10 @@ class ActorVaultLongRestV2 {
 
   static state(actor) {
     const stored = foundry.utils.getProperty(actor, AVLR2_FLAG_PATH) || {};
+    const quickRecovery = Boolean(stored.quickRecovery);
     return {
-      cost: Number.isFinite(Number(stored.cost)) ? this.clamp(stored.cost) : 1,
-      quickRecovery: Boolean(stored.quickRecovery)
+      cost: Number.isFinite(Number(stored.cost)) ? this.clampCost(stored.cost, quickRecovery) : 1,
+      quickRecovery
     };
   }
 
@@ -80,7 +86,7 @@ class ActorVaultLongRestV2 {
     if (previousRest.quickRecovery === enabled) return;
     const nextRest = {
       quickRecovery: enabled,
-      cost: this.clamp(previousRest.cost + (enabled ? -1 : 1))
+      cost: this.clampCost(previousRest.cost + (enabled ? -1 : 1), enabled)
     };
     await this.commit(actor, owner, previousResources, previousResources, previousRest, nextRest,
       `Quick Recovery ${enabled ? "enabled" : "disabled"} for ${actor.name} (${previousRest.cost} to ${nextRest.cost})`);
@@ -98,7 +104,10 @@ class ActorVaultLongRestV2 {
       throw new Error(`${actor.name} needs ${paid} Server Credit${paid === 1 ? "" : "s"}.`);
     }
     const nextResources = { ...previousResources, credits: previousResources.credits - paid };
-    const nextRest = { ...previousRest, cost: Math.min(4, previousRest.cost + 1) };
+    const nextRest = {
+      ...previousRest,
+      cost: this.clampCost(previousRest.cost + 1, previousRest.quickRecovery)
+    };
     await this.commit(actor, owner, previousResources, nextResources, previousRest, nextRest,
       `${actor.name} Long Rest (${paid} credit${paid === 1 ? "" : "s"} paid)`);
     ui.notifications.info(`${actor.name} completed a long rest.`);
@@ -110,7 +119,10 @@ class ActorVaultLongRestV2 {
     if (!owner) throw new Error("Character owner not found.");
     const previousResources = this.resources(owner);
     const previousRest = this.state(actor);
-    const nextRest = { ...previousRest, cost: Math.max(0, previousRest.cost - 1) };
+    const nextRest = {
+      ...previousRest,
+      cost: this.clampCost(previousRest.cost - 1, previousRest.quickRecovery)
+    };
     await this.commit(actor, owner, previousResources, previousResources, previousRest, nextRest,
       `${actor.name} Did Not Long Rest (${previousRest.cost} to ${nextRest.cost})`);
     ui.notifications.info(`${actor.name}: long-rest cost reduced to ${nextRest.cost}.`);
@@ -118,13 +130,14 @@ class ActorVaultLongRestV2 {
 
   static markup(actor, rest) {
     const disabled = !this.authorized(actor);
+    const minimum = rest.quickRecovery ? 0 : 1;
     return `<div class="avlr2-summary">
       <strong>Long Rest Cost: ${rest.cost}</strong>
       <label><input type="checkbox" data-avlr2-quick ${rest.quickRecovery ? "checked" : ""} ${disabled ? "disabled" : ""}> Quick Recovery</label>
     </div>
     <div class="avlr2-actions">
       <button type="button" data-avlr2-rest ${disabled ? "disabled" : ""}><i class="fas fa-bed"></i> Long Rest (${rest.cost})</button>
-      <button type="button" data-avlr2-no-rest ${disabled || rest.cost <= 0 ? "disabled" : ""}><i class="fas fa-arrow-down"></i> Did Not Long Rest</button>
+      <button type="button" data-avlr2-no-rest ${disabled || rest.cost <= minimum ? "disabled" : ""}><i class="fas fa-arrow-down"></i> Did Not Long Rest</button>
     </div>`;
   }
 
