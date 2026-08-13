@@ -44,7 +44,8 @@
     "styles/actor-vault.css",
     "styles/dashboard-v3.css",
     "styles/checkout-v3.css",
-    "styles/long-rest-v2.css"
+    "styles/long-rest-v2.css",
+    "styles/meta-shop.css"
   ],
   "languages": [{
     "lang": "en",
