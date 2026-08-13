@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- Made the world-level Resource Ledger the authoritative resource/history store, with Foundry User flags retained as compatibility mirrors.
+- Added ledger schema v2, automatic pre-migration snapshots, and JSON export/import controls.
+- Added a shared transaction engine with structured transaction type, resource delta, changed values, metadata, and before/after balances.
+- Routed dashboard saves, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest credit changes through the shared transaction engine.
+- Resource History now shows transaction type and delta, includes GM users, and supports viewing automatically archived ledgers.
+- Added Meta Shop confirmations that show cost and balances before and after a purchase.
+- Expanded Meta Shop descriptions for Forge, Arcanum, Sanctum, and Theater services.
+- Consolidated layout and resource-history compatibility behavior into the Resource Ledger UI; duplicate final-layout and long-rest-history scripts are no longer loaded.
+
 ## 1.0.9
 
 - Made the Meta Shop vertically scrollable so all shop categories remain reachable.
@@ -10,7 +21,7 @@
 ## 1.0.8
 
 - Added a persistent world-level resource ledger keyed by Forge player identity when available, preserving resource history if a Foundry user is removed or recreated.
-- Added archived ledger management so former users remain recoverable until a GM explicitly deletes their ledger record.
+- Added archived ledger management so former users remain recoverable until a GM explicitly removes their ledger record.
 - Added the Meta Shop with spell scrolls, crafting, potions, Forge, Arcanum, Sanctum, Bulwark, Theater, Guildhall loans, housing upgrades, and The Mirror.
 - Added level-based Rewards and The Study +10% XP toggle.
 - Added The Iron Contract and Training Grounds loans with one active contract of each type per player.
