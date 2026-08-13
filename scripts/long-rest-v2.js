@@ -1,6 +1,3 @@
-const AVLR2_SCOPE = "world";
-const AVLR2_RESOURCE_KEY = "metaResources";
-const AVLR2_HISTORY_KEY = "metaResourcesHistory";
 const AVLR2_FLAG_PATH = "flags.actor-vault.longRest";
 
 class ActorVaultLongRestV2 {
@@ -45,50 +42,41 @@ class ActorVaultLongRestV2 {
   }
 
   static resources(user) {
-    const value = foundry.utils.deepClone(user.getFlag(AVLR2_SCOPE, AVLR2_RESOURCE_KEY) || {});
-    value.credits = Number(value.credits) || 0;
-    return value;
+    if (!globalThis.ActorVaultLedger) throw new Error("Persistent Resource Ledger is unavailable.");
+    return ActorVaultLedger.getResources(user.id);
   }
 
-  static async history(user, actor, previousResources, nextResources, previousRest, nextRest, action) {
-    const entries = [...(user.getFlag(AVLR2_SCOPE, AVLR2_HISTORY_KEY) || [])];
-    entries.unshift({
-      timestamp: Date.now(),
-      editorUserId: game.user.id,
-      actorId: actor.id,
-      actorName: actor.name,
-      action,
-      previous: foundry.utils.deepClone(previousResources),
-      state: foundry.utils.deepClone(nextResources),
-      previousLongRest: foundry.utils.deepClone(previousRest),
-      longRest: foundry.utils.deepClone(nextRest)
-    });
-    await user.setFlag(AVLR2_SCOPE, AVLR2_HISTORY_KEY, entries.slice(0, 30));
-  }
-
-  static async commit(actor, user, previousResources, nextResources, previousRest, nextRest, action) {
-    await user.setFlag(AVLR2_SCOPE, AVLR2_RESOURCE_KEY, nextResources);
+  static async commit(actor, user, previousRest, nextRest, action, creditDelta = 0) {
+    await actor.update({ [AVLR2_FLAG_PATH]: nextRest });
     try {
-      await actor.update({ [AVLR2_FLAG_PATH]: nextRest });
+      await ActorVaultLedger.transact(user.id, {
+        type: "long-rest",
+        action,
+        delta: { credits: creditDelta },
+        editorUserId: game.user.id,
+        actorId: actor.id,
+        actorName: actor.name,
+        previousLongRest: previousRest,
+        longRest: nextRest,
+        metadata: { previousRest, nextRest }
+      });
     } catch (error) {
-      await user.setFlag(AVLR2_SCOPE, AVLR2_RESOURCE_KEY, previousResources).catch(() => {});
+      await actor.update({ [AVLR2_FLAG_PATH]: previousRest }).catch(() => {});
       throw error;
     }
-    await this.history(user, actor, previousResources, nextResources, previousRest, nextRest, action);
   }
 
   static async toggleQuickRecovery(actor, enabled) {
     if (!this.authorized(actor)) throw new Error("You may only change your own character.");
     const owner = game.users.get(this.ownerId(actor));
     if (!owner) throw new Error("Character owner not found.");
-    const previousResources = this.resources(owner);
     const previousRest = this.state(actor);
     if (previousRest.quickRecovery === enabled) return;
     const nextRest = {
       quickRecovery: enabled,
       cost: this.clampCost(previousRest.cost + (enabled ? -1 : 1), enabled)
     };
-    await this.commit(actor, owner, previousResources, previousResources, previousRest, nextRest,
+    await this.commit(actor, owner, previousRest, nextRest,
       `Quick Recovery ${enabled ? "enabled" : "disabled"} for ${actor.name} (${previousRest.cost} to ${nextRest.cost})`);
     ui.notifications.info(`${actor.name}: long-rest cost is now ${nextRest.cost}.`);
   }
@@ -97,19 +85,18 @@ class ActorVaultLongRestV2 {
     if (!this.authorized(actor)) throw new Error("You may only long rest your own character.");
     const owner = game.users.get(this.ownerId(actor));
     if (!owner) throw new Error("Character owner not found.");
-    const previousResources = this.resources(owner);
+    const resources = this.resources(owner);
     const previousRest = this.state(actor);
     const paid = previousRest.cost;
-    if (previousResources.credits < paid) {
+    if (resources.credits < paid) {
       throw new Error(`${actor.name} needs ${paid} Server Credit${paid === 1 ? "" : "s"}.`);
     }
-    const nextResources = { ...previousResources, credits: previousResources.credits - paid };
     const nextRest = {
       ...previousRest,
       cost: this.clampCost(previousRest.cost + 1, previousRest.quickRecovery)
     };
-    await this.commit(actor, owner, previousResources, nextResources, previousRest, nextRest,
-      `${actor.name} Long Rest (${paid} credit${paid === 1 ? "" : "s"} paid)`);
+    await this.commit(actor, owner, previousRest, nextRest,
+      `${actor.name} Long Rest (${paid} credit${paid === 1 ? "" : "s"} paid)`, -paid);
     ui.notifications.info(`${actor.name} completed a long rest.`);
   }
 
@@ -117,13 +104,12 @@ class ActorVaultLongRestV2 {
     if (!this.authorized(actor)) throw new Error("You may only update your own character.");
     const owner = game.users.get(this.ownerId(actor));
     if (!owner) throw new Error("Character owner not found.");
-    const previousResources = this.resources(owner);
     const previousRest = this.state(actor);
     const nextRest = {
       ...previousRest,
       cost: this.clampCost(previousRest.cost - 1, previousRest.quickRecovery)
     };
-    await this.commit(actor, owner, previousResources, previousResources, previousRest, nextRest,
+    await this.commit(actor, owner, previousRest, nextRest,
       `${actor.name} Did Not Long Rest (${previousRest.cost} to ${nextRest.cost})`);
     ui.notifications.info(`${actor.name}: long-rest cost reduced to ${nextRest.cost}.`);
   }
