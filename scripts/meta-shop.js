@@ -24,20 +24,20 @@ class ActorVaultMetaShop {
     potionUncommon:{group:"Craft Potions",name:"Uncommon Potion",gold:100,credits:0},
     potionRare:{group:"Craft Potions",name:"Rare Potion",gold:500,credits:0},
     potionVeryRare:{group:"Craft Potions",name:"Very Rare Potion",gold:1000,credits:0},
-    balancing:{group:"Forge",name:"Weapon Balancing",gold:100,credits:2},
-    scry:{group:"Arcanum",name:"Scry a Hex",gold:50,credits:1},
-    spellRestore:{group:"Arcanum",name:"Spell Restoration",gold:0,credits:3},
-    rejuvenate:{group:"Sanctum",name:"Rejuvenate",gold:0,credits:2},
+    balancing:{group:"Forge",name:"Weapon Balancing",gold:100,credits:2,description:"Each degree gives a weapon +1 attack / -1 damage or -1 attack / +1 damage. May be purchased any number of times."},
+    scry:{group:"Arcanum",name:"Scry a Hex",gold:50,credits:1,description:"Scry one hex."},
+    spellRestore:{group:"Arcanum",name:"Spell Restoration",gold:0,credits:3,description:"Restore all of your spell slots."},
+    rejuvenate:{group:"Sanctum",name:"Rejuvenate",gold:0,credits:2,description:"Regain all of your Hit Dice."},
     horse:{group:"Bulwark",name:"Horse",gold:10,credits:1},
     warhorse:{group:"Bulwark",name:"Warhorse",gold:100,credits:3},
-    inspiring:{group:"Theater",name:"Inspiring Performance",gold:15,credits:1},
-    temporaryTraining:{group:"Theater",name:"Temporary Training",gold:30,credits:1},
-    aria:{group:"Theater",name:"Aria of the Axebeak",gold:50,credits:2},
-    comedy:{group:"Theater",name:"Comedy of Constructs",gold:50,credits:2},
+    inspiring:{group:"Theater",name:"Inspiring Performance",gold:15,credits:1,description:"Gain a special 1d8 Bardic Inspiration die that may be held until the end of the next mission."},
+    temporaryTraining:{group:"Theater",name:"Temporary Training",gold:30,credits:1,description:"Gain proficiency in one skill or tool until the end of the next mission."},
+    aria:{group:"Theater",name:"Aria of the Axebeak",gold:50,credits:2,description:"Gain a bonus against monstrosities until the end of the next mission."},
+    comedy:{group:"Theater",name:"Comedy of Constructs",gold:50,credits:2,description:"Gain a bonus against constructs until the end of the next mission."},
     mirrorProficiency:{group:"The Mirror",name:"Proficiency Swap",gold:0,credits:5,requiresHousing:2},
     mirrorFeature:{group:"The Mirror",name:"Feature Swap",gold:0,credits:10,requiresHousing:2},
     mirrorFeat:{group:"The Mirror",name:"Feat Swap",gold:0,credits:20,requiresHousing:2},
-    mirrorRespec:{group:"The Mirror",name:"Skill Tree Respec",dynamic:"respec",requiresHousing:2}
+    mirrorRespec:{group:"The Mirror",name:"Skill Tree Respec",dynamic:"respec",requiresHousing:2,description:"5sc for the first respec, then +10sc for each additional respec."}
   };
 
   static housing = {
@@ -90,22 +90,29 @@ class ActorVaultMetaShop {
     return { requester, target };
   }
 
+  static costFor(def, resources) {
+    const count = Math.max(0, Math.trunc(Number(resources.skillTreeRespecCount) || 0));
+    return def.dynamic === "respec" ? { gold:0, credits:5+(10*count), xp:0 } : { gold:def.gold||0, credits:def.credits||0, xp:def.xp||0 };
+  }
+
   static costLabel(cost) {
     const parts = [];
     if (cost.gold) parts.push(`${Number(cost.gold).toLocaleString()}g`);
-    if (cost.credits) parts.push(`${cost.credits}sc`);
-    if (cost.xp) parts.push(`${cost.xp} XP`);
+    if (cost.credits) parts.push(`${Number(cost.credits).toLocaleString()}sc`);
+    if (cost.xp) parts.push(`${Number(cost.xp).toLocaleString()} XP`);
     return parts.join(" + ") || "Free";
   }
 
-  static async spend(userId, name, cost, requesterId, extra = {}) {
-    const { requester, target } = this.auth(userId, requesterId);
-    const previous = ActorVaultLedger.getResources(target.id);
-    if (previous.gold < (cost.gold || 0)) throw new Error(`${name} requires ${Number(cost.gold || 0).toLocaleString()} gold.`);
-    if (previous.credits < (cost.credits || 0)) throw new Error(`${name} requires ${cost.credits || 0} Server Credits.`);
-    const next = { ...previous, gold:previous.gold-(cost.gold||0), credits:previous.credits-(cost.credits||0), ...extra };
-    await ActorVaultLedger.commitResources(target.id, next, { previous, editorUserId:requester.id, action:`Meta Shop — ${name} (${this.costLabel(cost)})` });
-    return { message:`${target.name} purchased ${name}.` };
+  static balanceLabel(resources) {
+    return `${Number(resources.gold || 0).toLocaleString()}g · ${Number(resources.credits || 0).toLocaleString()}sc · ${Number(resources.xp || 0).toLocaleString()} XP`;
+  }
+
+  static remaining(resources, cost) {
+    return {
+      gold:(Number(resources.gold)||0)-(Number(cost.gold)||0),
+      credits:(Number(resources.credits)||0)-(Number(cost.credits)||0),
+      xp:(Number(resources.xp)||0)-(Number(cost.xp)||0)
+    };
   }
 
   static async execute(action, data, requesterId) {
@@ -114,12 +121,20 @@ class ActorVaultMetaShop {
     if (action === "purchase") {
       const def = this.items[data.itemId];
       if (!def) throw new Error("Unknown Meta Shop purchase.");
-      const { target } = this.auth(data.userId, requesterId);
+      const { requester, target } = this.auth(data.userId, requesterId);
       const resources = ActorVaultLedger.getResources(target.id);
       if (def.requiresHousing && resources.housingTier < def.requiresHousing) throw new Error(`${def.name} requires House or better.`);
-      const count = Math.max(0, Math.trunc(Number(resources.skillTreeRespecCount) || 0));
-      const cost = def.dynamic === "respec" ? { gold:0, credits:5+(10*count) } : { gold:def.gold||0, credits:def.credits||0 };
-      return this.spend(target.id, def.name, cost, requesterId, def.dynamic === "respec" ? { skillTreeRespecCount:count+1 } : {});
+      const cost = this.costFor(def, resources);
+      const set = def.dynamic === "respec" ? { skillTreeRespecCount: resources.skillTreeRespecCount + 1 } : {};
+      await ActorVaultLedger.transact(target.id, {
+        type:"shop",
+        action:`Meta Shop — ${def.name} (${this.costLabel(cost)})`,
+        delta:{ gold:-cost.gold, credits:-cost.credits, xp:-cost.xp },
+        set,
+        editorUserId:requester.id,
+        metadata:{ itemId:data.itemId, group:def.group, cost }
+      });
+      return { message:`${target.name} purchased ${def.name}.` };
     }
 
     if (action === "housingUpgrade") {
@@ -127,20 +142,30 @@ class ActorVaultMetaShop {
       const tier = Math.trunc(Number(data.tier) || 0);
       const def = this.housing[tier];
       if (!def) throw new Error("Unknown housing tier.");
-      const previous = ActorVaultLedger.getResources(target.id);
-      if (tier !== previous.housingTier + 1) throw new Error("Housing must be upgraded one tier at a time.");
-      if (previous.gold < def.gold || previous.credits < def.credits) throw new Error(`${def.name} requires ${this.costLabel(def)}.`);
-      const next = { ...previous, gold:previous.gold-def.gold, credits:previous.credits-def.credits, housingTier:tier };
-      await ActorVaultLedger.commitResources(target.id, next, { previous, editorUserId:requester.id, action:`Meta Shop — Housing Upgrade: ${def.name} (${this.costLabel(def)})` });
+      const resources = ActorVaultLedger.getResources(target.id);
+      if (tier !== resources.housingTier + 1) throw new Error("Housing must be upgraded one tier at a time.");
+      await ActorVaultLedger.transact(target.id, {
+        type:"housing",
+        action:`Meta Shop — Housing Upgrade: ${def.name} (${this.costLabel(def)})`,
+        delta:{ gold:-def.gold, credits:-def.credits },
+        set:{ housingTier:tier },
+        editorUserId:requester.id,
+        metadata:{ tier, name:def.name, cost:{gold:def.gold,credits:def.credits} }
+      });
       return { message:`${target.name} upgraded housing to ${def.name}.` };
     }
 
     if (action === "study") {
       const { requester, target } = this.auth(data.userId, requesterId);
-      const previous = ActorVaultLedger.getResources(target.id);
-      const next = { ...previous, studyBonus:Boolean(data.enabled) };
-      await ActorVaultLedger.commitResources(target.id, next, { previous, editorUserId:requester.id, action:`The Study ${next.studyBonus ? "enabled" : "disabled"}` });
-      return { message:`The Study bonus is ${next.studyBonus ? "enabled" : "disabled"}.` };
+      const enabled = Boolean(data.enabled);
+      await ActorVaultLedger.transact(target.id, {
+        type:"toggle",
+        action:`The Study ${enabled ? "enabled" : "disabled"}`,
+        set:{ studyBonus:enabled },
+        editorUserId:requester.id,
+        metadata:{ feature:"study", enabled }
+      });
+      return { message:`The Study bonus is ${enabled ? "enabled" : "disabled"}.` };
     }
 
     if (action === "reward") {
@@ -148,11 +173,16 @@ class ActorVaultMetaShop {
       const level = Math.trunc(Number(data.level) || 0);
       const reward = this.rewards[level];
       if (!reward) throw new Error("Select a valid reward level.");
-      const previous = ActorVaultLedger.getResources(target.id);
-      const xp = previous.studyBonus ? Math.round(reward.xp * 1.10) : reward.xp;
-      const next = { ...previous, xp:previous.xp+xp, gold:previous.gold+reward.gold, credits:previous.credits+reward.credits };
-      await ActorVaultLedger.commitResources(target.id, next, { previous, editorUserId:requester.id, action:`Rewards — Level ${level}: +${xp} XP, +${reward.gold}g, +${reward.credits}sc${previous.studyBonus ? " (Study +10% XP)" : ""}` });
-      return { message:`Level ${level} rewards added to ${target.name}.` };
+      const resources = ActorVaultLedger.getResources(target.id);
+      const xp = resources.studyBonus ? Math.round(reward.xp * 1.10) : reward.xp;
+      await ActorVaultLedger.transact(target.id, {
+        type:"reward",
+        action:`Session Rewards — Level ${level}: +${xp} XP, +${reward.gold}g, +${reward.credits}sc${resources.studyBonus ? " (Study +10% XP)" : ""}`,
+        delta:{ xp, gold:reward.gold, credits:reward.credits },
+        editorUserId:requester.id,
+        metadata:{ level, studyBonus:resources.studyBonus, baseXp:reward.xp }
+      });
+      return { message:`Level ${level} session rewards added to ${target.name}.` };
     }
 
     if (action === "loan") {
@@ -163,65 +193,24 @@ class ActorVaultMetaShop {
     throw new Error(`Unknown Meta Shop action: ${action}`);
   }
 
-  static async loan(userId, loanId, mode, requesterId) {
-    const { requester, target } = this.auth(userId, requesterId);
-    const definitions = {
-      ironContract:{ name:"The Iron Contract", receive:{gold:250,credits:5,xp:0}, repay:{gold:300,credits:6,xp:0} },
-      trainingGrounds:{ name:"Training Grounds", receive:{gold:0,credits:0,xp:1000}, repay:{gold:0,credits:0,xp:1200} }
-    };
-    const def = definitions[loanId];
-    if (!def) throw new Error("Unknown loan contract.");
-    const store = ActorVaultLedger.store();
-    const entry = ActorVaultLedger.ensureEntryInStore(store, target);
-    entry.loans ||= {};
-    const active = Boolean(entry.loans[loanId]?.active);
-    const previous = ActorVaultLedger.normalizeResources(entry.resources);
-    const next = { ...previous };
-
-    if (mode === "take") {
-      if (active) throw new Error(`${def.name} is already active.`);
-      next.gold += def.receive.gold; next.credits += def.receive.credits; next.xp += def.receive.xp;
-      entry.loans[loanId] = { active:true, takenAt:Date.now(), takenByUserId:requester.id };
-      entry.history ||= [];
-      entry.history.unshift({ timestamp:Date.now(), editorUserId:requester.id, editorName:requester.name, action:`${def.name} — Loan Issued (+${this.costLabel(def.receive)})`, previous, state:foundry.utils.deepClone(next) });
-    } else if (mode === "repay") {
-      if (!active) throw new Error(`${def.name} is not active.`);
-      if (next.gold < def.repay.gold || next.credits < def.repay.credits || next.xp < def.repay.xp) throw new Error(`${def.name} repayment requires ${this.costLabel(def.repay)}.`);
-      next.gold -= def.repay.gold; next.credits -= def.repay.credits; next.xp -= def.repay.xp;
-      entry.loans[loanId] = { ...entry.loans[loanId], active:false, repaidAt:Date.now(), repaidByUserId:requester.id };
-      entry.history ||= [];
-      entry.history.unshift({ timestamp:Date.now(), editorUserId:requester.id, editorName:requester.name, action:`${def.name} — Loan Repaid (-${this.costLabel(def.repay)})`, previous, state:foundry.utils.deepClone(next) });
-    } else throw new Error("Unknown loan action.");
-
-    entry.resources = foundry.utils.deepClone(next);
-    entry.history = entry.history.slice(0, 100);
-    entry.updatedAt = Date.now();
-    await ActorVaultLedger.write(store);
-    await target.setFlag("world", "metaResources", next);
-    await target.setFlag("world", "metaResourcesHistory", entry.history.slice(0,30));
-    return { message:`${target.name} ${mode === "take" ? "accepted" : "repaid"} ${def.name}.` };
-  }
-
   static line(itemId, userId) {
     const def = this.items[itemId];
     const resources = ActorVaultLedger.getResources(userId);
-    const count = Math.max(0, Math.trunc(Number(resources.skillTreeRespecCount) || 0));
-    const cost = def.dynamic === "respec" ? { gold:0, credits:5+(10*count) } : { gold:def.gold||0, credits:def.credits||0 };
+    const cost = this.costFor(def, resources);
     const locked = Boolean(def.requiresHousing && resources.housingTier < def.requiresHousing);
-    return `<div class="avms-line"><span><strong>${this.esc(def.name)}</strong><small>${this.esc(this.costLabel(cost))}${locked ? " — Requires House or better" : ""}</small></span><button type="button" data-avms-buy="${itemId}" ${locked ? "disabled" : ""}>Buy</button></div>`;
+    return `<div class="avms-line"><span><strong>${this.esc(def.name)}</strong><small>${this.esc(this.costLabel(cost))}${locked ? " — Requires House or better" : ""}</small>${def.description ? `<small class="avms-description">${this.esc(def.description)}</small>` : ""}</span><button type="button" data-avms-buy="${itemId}" ${locked ? "disabled" : ""}>Buy</button></div>`;
   }
 
   static shopMarkup(userId) {
     const groups = ["Purchase Spell Scrolls","Craft Magic Items","Craft Potions","Forge","Arcanum","Sanctum","Bulwark","Theater","The Mirror"];
     const resources = ActorVaultLedger.getResources(userId);
     const loans = ActorVaultLedger.getLoans(userId);
-    const sections = groups.map(group => {
-      const theaterNote = group === "Theater" ? `<p><strong>Unlocked Performances:</strong> Aria of the Axebeak, Comedy of Constructs</p>` : "";
-      return `<section class="avms-group"><h3>${this.esc(group)}</h3>${theaterNote}${Object.entries(this.items).filter(([,def]) => def.group === group).map(([id]) => this.line(id,userId)).join("")}</section>`;
-    }).join("");
-    const loanCard = (id,name,receive,repay) => {
+    const sections = groups.map(group => `<section class="avms-group"><h3>${this.esc(group)}</h3>${Object.entries(this.items).filter(([,def]) => def.group === group).map(([id]) => this.line(id,userId)).join("")}</section>`).join("");
+    const defs = ActorVaultLedger.loanDefinitions();
+    const loanCard = id => {
+      const def = defs[id];
       const active = Boolean(loans?.[id]?.active);
-      return `<div class="avms-line"><span><strong>${name}</strong><small>Receive ${receive} · Repay ${repay} · Limit 1 active</small></span><button type="button" data-avms-loan="${id}" data-mode="${active ? "repay" : "take"}">${active ? "Pay Loan" : "Take Loan"}</button></div>`;
+      return `<div class="avms-line"><span><strong>${this.esc(def.name)}</strong><small>Receive ${this.esc(def.receiveLabel)} · Repay ${this.esc(def.repayLabel)} · Limit 1 active</small></span><button type="button" data-avms-loan="${id}" data-mode="${active ? "repay" : "take"}">${active ? "Pay Loan" : "Take Loan"}</button></div>`;
     };
     const housingRows = Object.entries(this.housing).map(([tier,def]) => {
       const value = Number(tier);
@@ -229,7 +218,29 @@ class ActorVaultMetaShop {
       const done = value <= resources.housingTier;
       return `<div class="avms-line"><span><strong>${def.name}</strong><small>${this.costLabel(def)}</small></span><button type="button" data-avms-housing="${value}" ${allowed ? "" : "disabled"}>${done ? "Owned" : allowed ? "Upgrade" : "Locked"}</button></div>`;
     }).join("");
-    return `<div class="avms-shop"><section class="avms-group"><h3>Guildhall</h3>${loanCard("ironContract","The Iron Contract","250g + 5sc","300g + 6sc")}${loanCard("trainingGrounds","Training Grounds","1000 XP","1200 XP")}</section>${sections}<section class="avms-group"><h3>Housing Upgrade</h3><p>Housing must progress one tier at a time.</p>${housingRows}</section></div>`;
+    return `<div class="avms-shop"><section class="avms-group"><h3>Guildhall</h3>${loanCard("ironContract")}${loanCard("trainingGrounds")}</section>${sections}<section class="avms-group"><h3>Housing Upgrade</h3><p>Housing must progress one tier at a time.</p>${housingRows}</section></div>`;
+  }
+
+  static async confirmPurchase(userId, def) {
+    const resources = ActorVaultLedger.getResources(userId);
+    const cost = this.costFor(def, resources);
+    const after = this.remaining(resources, cost);
+    return foundry.applications.api.DialogV2.confirm({
+      window:{title:`Purchase ${def.name}`},
+      content:`<p><strong>${this.esc(def.name)}</strong></p>${def.description ? `<p>${this.esc(def.description)}</p>` : ""}<p>Cost: <strong>${this.esc(this.costLabel(cost))}</strong></p><p>Current: ${this.esc(this.balanceLabel(resources))}<br>After purchase: <strong>${this.esc(this.balanceLabel(after))}</strong></p>`,
+      yes:{label:"Purchase"}, no:{label:"Cancel"}, modal:true
+    });
+  }
+
+  static async confirmHousing(userId, tier) {
+    const def = this.housing[tier];
+    const resources = ActorVaultLedger.getResources(userId);
+    const after = this.remaining(resources, def);
+    return foundry.applications.api.DialogV2.confirm({
+      window:{title:`Upgrade to ${def.name}`},
+      content:`<p>Upgrade housing to <strong>${this.esc(def.name)}</strong>?</p><p>Cost: <strong>${this.esc(this.costLabel(def))}</strong></p><p>Current: ${this.esc(this.balanceLabel(resources))}<br>After purchase: <strong>${this.esc(this.balanceLabel(after))}</strong></p>`,
+      yes:{label:"Upgrade"}, no:{label:"Cancel"}, modal:true
+    });
   }
 
   static async openShop(userId, app) {
@@ -257,16 +268,20 @@ class ActorVaultMetaShop {
     };
     root.querySelectorAll("[data-avms-buy]").forEach(button => button.addEventListener("click", async () => {
       const def = this.items[button.dataset.avmsBuy];
-      const resources = ActorVaultLedger.getResources(userId);
-      const count = Math.max(0,Math.trunc(Number(resources.skillTreeRespecCount)||0));
-      const cost = def.dynamic === "respec" ? {credits:5+(10*count)} : def;
-      const confirmed = await foundry.applications.api.DialogV2.confirm({ window:{title:`Purchase ${def.name}`}, content:`<p>Purchase <strong>${this.esc(def.name)}</strong> for <strong>${this.esc(this.costLabel(cost))}</strong>?</p>`, yes:{label:"Purchase"}, no:{label:"Cancel"}, modal:true });
-      if (confirmed) run("purchase",{ itemId:button.dataset.avmsBuy });
+      if (await this.confirmPurchase(userId, def)) run("purchase",{ itemId:button.dataset.avmsBuy });
     }));
-    root.querySelectorAll("[data-avms-housing]").forEach(button => button.addEventListener("click", () => run("housingUpgrade",{ tier:Number(button.dataset.avmsHousing) })));
+    root.querySelectorAll("[data-avms-housing]").forEach(button => button.addEventListener("click", async () => {
+      const tier = Number(button.dataset.avmsHousing);
+      if (await this.confirmHousing(userId, tier)) run("housingUpgrade",{ tier });
+    }));
     root.querySelectorAll("[data-avms-loan]").forEach(button => button.addEventListener("click", async () => {
       const mode = button.dataset.mode;
-      const confirmed = await foundry.applications.api.DialogV2.confirm({ window:{title:mode === "take" ? "Take Loan" : "Pay Loan"}, content:`<p>${mode === "take" ? "Accept" : "Repay"} this contract?</p>`, yes:{label:mode === "take" ? "Take Loan" : "Pay Loan"}, no:{label:"Cancel"}, modal:true });
+      const def = ActorVaultLedger.loanDefinitions()[button.dataset.avmsLoan];
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        window:{title:mode === "take" ? `Take ${def.name}` : `Pay ${def.name}`},
+        content:`<p>${mode === "take" ? `Receive <strong>${this.esc(def.receiveLabel)}</strong> and owe <strong>${this.esc(def.repayLabel)}</strong>.` : `Repay <strong>${this.esc(def.repayLabel)}</strong> and close this contract.`}</p>`,
+        yes:{label:mode === "take" ? "Take Loan" : "Pay Loan"}, no:{label:"Cancel"}, modal:true
+      });
       if (confirmed) run("loan",{ loanId:button.dataset.avmsLoan, mode });
     }));
   }
@@ -291,7 +306,7 @@ class ActorVaultMetaShop {
       root.querySelector(".avd-storage-heading")?.insertAdjacentElement("beforebegin", tools);
     }
     const options = Object.entries(this.rewards).map(([level,reward]) => `<option value="${level}">Level ${level} — ${reward.xp} XP / ${reward.gold}g / ${reward.credits}sc</option>`).join("");
-    tools.innerHTML = `<div class="avms-tools__row"><button type="button" data-avms-open><i class="fas fa-store"></i> Meta Shop</button><label class="avms-study"><input type="checkbox" data-avms-study ${resources.studyBonus ? "checked" : ""}><span><strong>The Study</strong><small>+10% bonus XP on Rewards while enabled.</small></span></label></div><div class="avms-rewards"><label><span>Rewards</span><select data-avms-level>${options}</select></label><button type="button" data-avms-reward>Claim Reward</button></div>`;
+    tools.innerHTML = `<div class="avms-tools__row"><button type="button" data-avms-open><i class="fas fa-store"></i> Meta Shop</button><label class="avms-study"><input type="checkbox" data-avms-study ${resources.studyBonus ? "checked" : ""}><span><strong>The Study</strong><small>+10% bonus XP on session rewards while enabled.</small></span></label></div><div class="avms-rewards"><label><span>Rewards</span><select data-avms-level>${options}</select></label><button type="button" data-avms-reward>Claim Session Rewards</button></div>`;
 
     tools.querySelector("[data-avms-open]")?.addEventListener("click", () => this.openShop(userId,app).catch(error => ui.notifications.error(error.message)));
     tools.querySelector("[data-avms-study]")?.addEventListener("change", async event => {
@@ -302,8 +317,14 @@ class ActorVaultMetaShop {
     tools.querySelector("[data-avms-reward]")?.addEventListener("click", async () => {
       const level = Number(tools.querySelector("[data-avms-level]")?.value || 1);
       const reward = this.rewards[level];
-      const xp = resources.studyBonus ? Math.round(reward.xp*1.10) : reward.xp;
-      const confirmed = await foundry.applications.api.DialogV2.confirm({ window:{title:`Claim Level ${level} Rewards`}, content:`<p>Add <strong>${xp} XP, ${reward.gold}g, and ${reward.credits}sc</strong>${resources.studyBonus ? " (The Study +10% XP applied)" : ""}?</p>`, yes:{label:"Claim Reward"}, no:{label:"Cancel"}, modal:true });
+      const current = ActorVaultLedger.getResources(userId);
+      const xp = current.studyBonus ? Math.round(reward.xp*1.10) : reward.xp;
+      const after = { ...current, xp:current.xp+xp, gold:current.gold+reward.gold, credits:current.credits+reward.credits };
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        window:{title:`Claim Level ${level} Session Rewards`},
+        content:`<p>Add <strong>${xp} XP, ${reward.gold}g, and ${reward.credits}sc</strong>${current.studyBonus ? " (The Study +10% XP applied)" : ""}?</p><p>Current: ${this.esc(this.balanceLabel(current))}<br>After claim: <strong>${this.esc(this.balanceLabel(after))}</strong></p>`,
+        yes:{label:"Claim Session Rewards"}, no:{label:"Cancel"}, modal:true
+      });
       if (!confirmed) return;
       try { const result = await this.request("reward",{userId,level}); ui.notifications.info(result.message); await app.render({force:true}); }
       catch (error) { ui.notifications.error(error.message); }
