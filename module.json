@@ -2,7 +2,7 @@
   "id": "actor-vault",
   "type": "module",
   "title": "Actor Vault",
-  "description": "Checkout-style player character vault with player imports, GM import/export controls, resources, housing, per-character long-rest credits, Worldbreaker progression, Skill Tree synchronization, persistent resource history, and loan contracts.",
+  "description": "Checkout-style player character vault with player imports, GM import/export controls, resources, housing, per-character long-rest credits, Worldbreaker progression, Skill Tree synchronization, persistent resource history, Meta Shop, rewards, and loan contracts.",
   "version": "1.0.7",
   "authors": [{ "name": "Ryan Mizell" }],
   "compatibility": {
@@ -37,7 +37,8 @@
     "scripts/public-api.js",
     "scripts/owner-dropdown-all-users.js",
     "scripts/dashboard-all-users.js",
-    "scripts/resource-ledger-ui.js"
+    "scripts/resource-ledger-ui.js",
+    "scripts/meta-shop.js"
   ],
   "styles": [
     "styles/actor-vault.css",
