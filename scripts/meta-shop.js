@@ -155,7 +155,11 @@ class ActorVaultMetaShop {
       return { message:`Level ${level} rewards added to ${target.name}.` };
     }
 
-    if (action === "loan") return this.loan(data.userId, data.loanId, data.mode, requesterId);
+    if (action === "loan") {
+      return data.mode === "take"
+        ? ActorVaultLedger.takeLoan(data.userId, data.loanId, requesterId)
+        : ActorVaultLedger.repayLoan(data.userId, data.loanId, requesterId);
+    }
     throw new Error(`Unknown Meta Shop action: ${action}`);
   }
 
