@@ -1,12 +1,8 @@
 const AVLUI_MODULE_ID = "actor-vault";
 const AVLUI_SOCKET = `module.${AVLUI_MODULE_ID}-ledger`;
-const AVLUI_SCOPE = "world";
-const AVLUI_RESOURCE_KEY = "metaResources";
-const AVLUI_HISTORY_KEY = "metaResourcesHistory";
 
 class ActorVaultLedgerUI {
   static pending = new Map();
-  static syncing = false;
 
   static root(element, app) {
     return element instanceof HTMLElement ? element : element?.[0] || app?.element || null;
@@ -65,146 +61,31 @@ class ActorVaultLedgerUI {
     if (!globalThis.ActorVaultLedger) throw new Error("Persistent Resource Ledger is unavailable.");
     if (action === "save") {
       const { requester, target } = this.assertOwnUser(data.userId, requesterId);
-      const previous = ActorVaultLedger.getResources(target.id);
-      const next = ActorVaultLedger.normalizeResources({ ...previous, ...data.resources });
-      await ActorVaultLedger.commitResources(target.id, next, {
-        previous,
-        editorUserId: requester.id,
-        action: "Dashboard update"
+      await ActorVaultLedger.transact(target.id, {
+        type: "manual",
+        action: "Dashboard update",
+        set: data.resources,
+        editorUserId: requester.id
       });
       return { message: `${target.name}'s dashboard was saved.` };
     }
     if (action === "housing") {
       const { requester, target } = this.assertOwnUser(data.userId, requesterId);
-      const previous = ActorVaultLedger.getResources(target.id);
-      const next = { ...previous, housingTier: Math.min(4, Math.max(0, Math.trunc(Number(data.tier) || 0))) };
-      await ActorVaultLedger.commitResources(target.id, next, {
-        previous,
-        editorUserId: requester.id,
-        action: `Housing changed to ${["None", "Homestead", "House", "Manor", "Estate"][next.housingTier]}`
+      const tier = Math.min(4, Math.max(0, Math.trunc(Number(data.tier) || 0)));
+      await ActorVaultLedger.transact(target.id, {
+        type: "manual",
+        action: `Housing changed to ${["None", "Homestead", "House", "Manor", "Estate"][tier]}`,
+        set: { housingTier: tier },
+        editorUserId: requester.id
       });
       return { message: `${target.name}'s housing was updated.` };
     }
-    if (action === "takeLoan") return ActorVaultLedger.takeLoan(data.userId, data.loanId, requesterId);
-    if (action === "repayLoan") return ActorVaultLedger.repayLoan(data.userId, data.loanId, requesterId);
     if (action === "deleteArchived") {
       if (!game.users.get(requesterId)?.isGM) throw new Error("Only a GM can delete archived ledger users.");
       for (const key of data.keys || []) await ActorVaultLedger.deleteArchived(key);
       return { message: `${(data.keys || []).length} archived ledger entr${(data.keys || []).length === 1 ? "y" : "ies"} deleted.` };
     }
     throw new Error(`Unknown ledger action: ${action}`);
-  }
-
-  static historyKey(entry) {
-    return [entry?.timestamp ?? 0, entry?.action ?? "", entry?.actorId ?? "", entry?.editorUserId ?? ""].join("|");
-  }
-
-  static async syncFromUser(user) {
-    if (!game.user.isGM || this.syncing || !user || user.isGM || !globalThis.ActorVaultLedger) return;
-    this.syncing = true;
-    try {
-      const store = ActorVaultLedger.store();
-      const entry = ActorVaultLedger.ensureEntryInStore(store, user);
-      const userResources = user.getFlag(AVLUI_SCOPE, AVLUI_RESOURCE_KEY);
-      if (userResources && typeof userResources === "object") entry.resources = ActorVaultLedger.normalizeResources(userResources);
-      const userHistory = user.getFlag(AVLUI_SCOPE, AVLUI_HISTORY_KEY);
-      if (Array.isArray(userHistory) && userHistory.length) {
-        const combined = [...userHistory, ...(entry.history || [])];
-        const seen = new Set();
-        entry.history = combined.filter(item => {
-          const key = this.historyKey(item);
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        }).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 100);
-      }
-      entry.updatedAt = Date.now();
-      await ActorVaultLedger.write(store);
-    } finally {
-      this.syncing = false;
-    }
-  }
-
-  static async restoreCurrentUsers() {
-    if (!game.user.isGM || !globalThis.ActorVaultLedger) return;
-    await ActorVaultLedger.syncCurrentUsers();
-    this.syncing = true;
-    try {
-      for (const user of game.users.filter(u => !u.isGM)) {
-        const entry = ActorVaultLedger.getEntry(user.id);
-        if (!entry) continue;
-        const resources = ActorVaultLedger.normalizeResources(entry.resources);
-        const current = ActorVaultLedger.normalizeResources(user.getFlag(AVLUI_SCOPE, AVLUI_RESOURCE_KEY));
-        if (JSON.stringify(resources) !== JSON.stringify(current)) await user.setFlag(AVLUI_SCOPE, AVLUI_RESOURCE_KEY, resources);
-        const history = Array.isArray(entry.history) ? entry.history.slice(0, 30) : [];
-        const currentHistory = user.getFlag(AVLUI_SCOPE, AVLUI_HISTORY_KEY) || [];
-        if (JSON.stringify(history) !== JSON.stringify(currentHistory)) await user.setFlag(AVLUI_SCOPE, AVLUI_HISTORY_KEY, history);
-      }
-    } finally {
-      this.syncing = false;
-    }
-  }
-
-  static loanCards(userId) {
-    const defs = ActorVaultLedger.loanDefinitions();
-    const loans = ActorVaultLedger.getLoans(userId);
-    return Object.values(defs).map(def => {
-      const active = Boolean(loans?.[def.id]?.active);
-      return `<article class="avd-loan-card" data-avl-loan="${def.id}">
-        <div class="avd-loan-card__text">
-          <strong>${foundry.utils.escapeHTML(def.name)}</strong>
-          <span>Receive: ${foundry.utils.escapeHTML(def.receiveLabel)}</span>
-          <span>Repay: ${foundry.utils.escapeHTML(def.repayLabel)}</span>
-          <em>${active ? "Active contract" : "No active contract"}</em>
-        </div>
-        <button type="button" data-avl-${active ? "repay" : "take"}="${def.id}">${active ? "Pay Loan" : "Take Loan"}</button>
-      </article>`;
-    }).join("");
-  }
-
-  static async confirmLoan(userId, loanId, mode) {
-    const user = game.users.get(userId);
-    const def = ActorVaultLedger.loanDefinitions()[loanId];
-    if (!user || !def) return false;
-    const taking = mode === "take";
-    return foundry.applications.api.DialogV2.confirm({
-      window: { title: `${taking ? "Take" : "Pay"} ${def.name}` },
-      content: `<p><strong>${foundry.utils.escapeHTML(user.name)}</strong></p><p>${taking ? `Receive <strong>${def.receiveLabel}</strong> now and owe <strong>${def.repayLabel}</strong>.` : `Repay <strong>${def.repayLabel}</strong> now and close this contract.`}</p><p>Limit: 1 active ${foundry.utils.escapeHTML(def.name)} contract per player.</p>`,
-      yes: { label: taking ? "Take Loan" : "Pay Loan" },
-      no: { label: "Cancel" },
-      modal: true
-    });
-  }
-
-  static bindLoans(app, root) {
-    const form = root.querySelector("form[data-resource-form]");
-    const userId = form?.dataset.userId;
-    if (!userId || !game.users.get(userId)) return;
-    let section = root.querySelector("[data-avl-loans]");
-    if (!section) {
-      section = document.createElement("section");
-      section.className = "avd-loans";
-      section.dataset.avlLoans = "true";
-      form.insertAdjacentElement("afterend", section);
-    }
-    section.innerHTML = `<div class="avd-storage-heading"><h3>Loan Contracts</h3><span>Each contract may be active once at a time.</span></div><div class="avd-loan-grid">${this.loanCards(userId)}</div>`;
-    for (const button of section.querySelectorAll("[data-avl-take],[data-avl-repay]")) {
-      button.addEventListener("click", async event => {
-        event.preventDefault();
-        const loanId = button.dataset.avlTake || button.dataset.avlRepay;
-        const mode = button.dataset.avlTake ? "take" : "repay";
-        if (!await this.confirmLoan(userId, loanId, mode)) return;
-        section.querySelectorAll("button").forEach(b => b.disabled = true);
-        try {
-          const result = await this.request(mode === "take" ? "takeLoan" : "repayLoan", { userId, loanId });
-          ui.notifications.info(result.message);
-          await app.render({ force: true });
-        } catch (error) {
-          ui.notifications.error(error.message);
-          section.querySelectorAll("button").forEach(b => b.disabled = false);
-        }
-      });
-    }
   }
 
   static bindSave(app, root) {
@@ -261,20 +142,34 @@ class ActorVaultLedgerUI {
     }, true);
   }
 
-  static historyEntriesForValue(value) {
-    if (game.users.get(value)) return { label: game.users.get(value).name, history: ActorVaultLedger.getHistory(value) };
+  static formatDelta(delta = {}) {
+    const parts = [];
+    for (const [key, label] of [["gold", "g"], ["credits", "sc"], ["xp", " XP"]]) {
+      const value = Number(delta?.[key]) || 0;
+      if (!value) continue;
+      parts.push(`${value > 0 ? "+" : ""}${Number(value).toLocaleString()}${label}`);
+    }
+    return parts.join(" · ") || "—";
+  }
+
+  static historyForValue(value) {
+    const user = game.users.get(value);
+    if (user) return { label: user.name, history: ActorVaultLedger.getHistory(user.id) };
     const entry = ActorVaultLedger.getEntryByKey(value);
     return { label: entry?.name || "Archived User", history: Array.isArray(entry?.history) ? foundry.utils.deepClone(entry.history) : [] };
   }
 
-  static async openHistory(initialUserId) {
-    const current = game.user.isGM ? game.users.filter(u => !u.isGM).sort((a, b) => a.name.localeCompare(b.name)) : [game.user];
-    const archived = game.user.isGM ? ActorVaultLedger.allEntries().filter(e => e.archived).sort((a, b) => String(a.name).localeCompare(String(b.name))) : [];
-    const currentOptions = current.map(user => `<option value="${foundry.utils.escapeHTML(user.id)}" ${user.id === initialUserId ? "selected" : ""}>${foundry.utils.escapeHTML(user.name)}</option>`).join("");
-    const archivedOptions = archived.length ? `<optgroup label="Archived">${archived.map(entry => `<option value="${foundry.utils.escapeHTML(entry.key)}">${foundry.utils.escapeHTML(entry.name)} [Archived]</option>`).join("")}</optgroup>` : "";
+  static async openHistory(initialValue) {
+    const current = game.user.isGM ? [...game.users].sort((a, b) => a.name.localeCompare(b.name)) : [game.user];
+    const archived = game.user.isGM ? ActorVaultLedger.allEntries().filter(entry => entry.archived).sort((a, b) => String(a.name).localeCompare(String(b.name))) : [];
+    const validInitial = current.some(user => user.id === initialValue) || archived.some(entry => entry.key === initialValue)
+      ? initialValue
+      : current[0]?.id || archived[0]?.key;
+    const currentOptions = current.map(user => `<option value="${foundry.utils.escapeHTML(user.id)}" ${user.id === validInitial ? "selected" : ""}>${foundry.utils.escapeHTML(user.name)}${user.isGM ? " [GM]" : ""}</option>`).join("");
+    const archivedOptions = archived.length ? `<optgroup label="Archived">${archived.map(entry => `<option value="${foundry.utils.escapeHTML(entry.key)}" ${entry.key === validInitial ? "selected" : ""}>${foundry.utils.escapeHTML(entry.name)} [Archived]</option>`).join("")}</optgroup>` : "";
     const dialog = new foundry.applications.api.DialogV2({
       window: { title: game.user.isGM ? "Resource History" : "My Resource History", resizable: true },
-      position: { width: 1180, height: 720 },
+      position: { width: 1240, height: 720 },
       content: `<section class="avd-history"><label>Player<select data-avl-history-user ${game.user.isGM ? "" : "disabled"}>${currentOptions}${archivedOptions}</select></label><div data-avl-history-log></div></section>`,
       buttons: [{ action: "close", label: "Close", default: true }]
     });
@@ -283,13 +178,16 @@ class ActorVaultLedgerUI {
     const log = dialog.element.querySelector("[data-avl-history-log]");
     const housingName = tier => ["None", "Homestead", "House", "Manor", "Estate"][Math.max(0, Math.min(4, Number(tier) || 0))];
     const draw = () => {
-      const { history } = this.historyEntriesForValue(select.value);
-      if (!history.length) { log.innerHTML = "<p>No resource history recorded.</p>"; return; }
-      log.innerHTML = `<table><thead><tr><th>Date</th><th>Action</th><th>Character</th><th>Editor</th><th>Credits</th><th>Housing</th><th>Gold</th><th>XP</th><th>Storage</th></tr></thead><tbody>${history.map(entry => {
+      const { history } = this.historyForValue(select.value);
+      if (!history.length) {
+        log.innerHTML = "<p>No resource history recorded.</p>";
+        return;
+      }
+      log.innerHTML = `<table><thead><tr><th>Date</th><th>Type</th><th>Action</th><th>Change</th><th>Character</th><th>Editor</th><th>SC</th><th>Housing</th><th>Gold</th><th>XP</th><th>Storage</th></tr></thead><tbody>${history.map(entry => {
         const state = entry.state || {};
         const storage = Array.isArray(state.storage) ? state.storage.filter(Boolean).join(", ") : "";
         const editor = entry.editorName || game.users.get(entry.editorUserId)?.name || "Unknown";
-        return `<tr><td>${new Date(entry.timestamp).toLocaleString()}</td><td>${foundry.utils.escapeHTML(entry.action || "Dashboard update")}</td><td>${foundry.utils.escapeHTML(entry.actorName || "—")}</td><td>${foundry.utils.escapeHTML(editor)}</td><td>${Number(state.credits) || 0}</td><td>${housingName(state.housingTier)}</td><td>${Number(state.gold) || 0}</td><td>${Number(state.xp) || 0}</td><td>${foundry.utils.escapeHTML(storage || "—")}</td></tr>`;
+        return `<tr><td>${new Date(entry.timestamp).toLocaleString()}</td><td>${foundry.utils.escapeHTML(entry.type || "legacy")}</td><td>${foundry.utils.escapeHTML(entry.action || "Resource update")}</td><td>${foundry.utils.escapeHTML(this.formatDelta(entry.delta))}</td><td>${foundry.utils.escapeHTML(entry.actorName || "—")}</td><td>${foundry.utils.escapeHTML(editor)}</td><td>${Number(state.credits) || 0}</td><td>${housingName(state.housingTier)}</td><td>${Number(state.gold) || 0}</td><td>${Number(state.xp) || 0}</td><td>${foundry.utils.escapeHTML(storage || "—")}</td></tr>`;
       }).join("")}</tbody></table>`;
     };
     select.addEventListener("change", draw);
@@ -297,10 +195,11 @@ class ActorVaultLedgerUI {
   }
 
   static bindHistory(root) {
-    const oldButton = root.querySelector("[data-history-button]");
+    const oldButton = root.querySelector("[data-history-button], .actor-vault-history-open, [data-avp-history], [data-avx-history], [data-avuf-own-history]");
     if (!oldButton || oldButton.dataset.avlLedgerBound === "true") return;
     const button = oldButton.cloneNode(true);
     button.dataset.avlLedgerBound = "true";
+    button.innerHTML = `<i class="fas fa-clock-rotate-left"></i> ${game.user.isGM ? "Resource History" : "My Resource History"}`;
     oldButton.replaceWith(button);
     button.addEventListener("click", event => {
       event.preventDefault();
@@ -310,74 +209,202 @@ class ActorVaultLedgerUI {
     }, true);
   }
 
-  static async manageArchived() {
+  static async openArchivedLedgers() {
     const archived = ActorVaultLedger.allEntries().filter(entry => entry.archived).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    if (!archived.length) {
-      ui.notifications.info("No archived resource-ledger users.");
-      return;
-    }
-    const rows = archived.map((entry, index) => `<label style="display:flex;gap:.5rem;align-items:center;padding:.35rem 0"><input type="checkbox" name="avl-archive" value="${index}"><span><strong>${foundry.utils.escapeHTML(entry.name)}</strong> — ${entry.history?.length || 0} history entries</span></label>`).join("");
+    if (!archived.length) return ui.notifications.info("No archived resource ledgers.");
+    const rows = archived.map((entry, index) => `<div style="display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:center;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.08)"><span><strong>${foundry.utils.escapeHTML(entry.name)}</strong><br><small>${entry.history?.length || 0} history entries</small></span><button type="button" data-avl-view-archive="${index}">View History</button><label style="display:flex;gap:.3rem;align-items:center"><input type="checkbox" name="avl-delete-archive" value="${index}"> Delete</label></div>`).join("");
     const result = await foundry.applications.api.DialogV2.wait({
-      window: { title: "Manage Archived Resource Users" },
-      position: { width: 620 },
-      content: `<form data-avl-archive-form><p>Archived users remain here even after their Foundry user is removed. Delete them only when you intentionally want to remove their ledger and history.</p><div style="max-height:360px;overflow:auto">${rows}</div><p><strong>Deleting an archived ledger cannot be undone.</strong></p></form>`,
+      window: { title: "Archived Resource Ledgers", resizable: true },
+      position: { width: 760, height: 600 },
+      content: `<form data-avl-archive-form><p>Ledgers are archived automatically when no current Foundry/Forge user matches them.</p><div style="max-height:390px;overflow:auto">${rows}</div><p><strong>Permanent deletion cannot be undone.</strong></p></form>`,
       buttons: [
-        { action: "delete", label: "Delete Selected", callback: (event, button, dialog) => ({ action: "delete", indexes: [...dialog.element.querySelectorAll('input[name="avl-archive"]:checked')].map(el => Number(el.value)) }) },
-        { action: "close", label: "Close", callback: () => ({ action: "close" }) }
+        { action: "delete", label: "Delete Checked", callback: (event, button, dialog) => ({ action: "delete", indexes: [...dialog.element.querySelectorAll('input[name="avl-delete-archive"]:checked')].map(el => Number(el.value)) }) },
+        { action: "close", label: "Close", default: true, callback: () => ({ action: "close" }) }
       ],
+      render: (event, dialog) => {
+        dialog.element.querySelectorAll("[data-avl-view-archive]").forEach(button => button.addEventListener("click", () => {
+          const entry = archived[Number(button.dataset.avlViewArchive)];
+          if (entry) this.openHistory(entry.key).catch(error => ui.notifications.error(error.message));
+        }));
+      },
       modal: true
     });
     if (result?.action !== "delete") return;
-    const selected = (result.indexes || []).map(i => archived[i]).filter(Boolean);
-    if (!selected.length) return ui.notifications.warn("No archived users selected.");
+    const selected = (result.indexes || []).map(index => archived[index]).filter(Boolean);
+    if (!selected.length) return ui.notifications.warn("No archived ledgers selected.");
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       window: { title: "Delete Archived Resource Data" },
-      content: `<p>Permanently delete the resource ledger and history for <strong>${selected.map(e => foundry.utils.escapeHTML(e.name)).join(", ")}</strong>?</p><p><strong>This cannot be undone.</strong></p>`,
-      yes: { label: "Delete Permanently" }, no: { label: "Cancel" }, modal: true
+      content: `<p>Permanently delete the resource ledger and history for <strong>${selected.map(entry => foundry.utils.escapeHTML(entry.name)).join(", ")}</strong>?</p><p><strong>This cannot be undone.</strong></p>`,
+      yes: { label: "Delete Permanently" },
+      no: { label: "Cancel" },
+      modal: true
     });
     if (!confirmed) return;
-    const response = await this.request("deleteArchived", { keys: selected.map(e => e.key) });
+    const response = await this.request("deleteArchived", { keys: selected.map(entry => entry.key) });
     ui.notifications.info(response.message);
   }
 
-  static bindArchiveManager(root) {
-    if (!game.user.isGM || root.querySelector("[data-avl-manage-archived]")) return;
+  static exportLedger() {
+    if (!game.user.isGM) return;
+    const payload = ActorVaultLedger.exportBackup();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `actor-vault-ledger-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    ui.notifications.info("Actor Vault ledger backup exported.");
+  }
+
+  static async importLedger(app) {
+    if (!game.user.isGM) return;
+    const result = await foundry.applications.api.DialogV2.wait({
+      window: { title: "Import Resource Ledger Backup" },
+      position: { width: 620 },
+      content: `<form><p>Select an Actor Vault resource-ledger JSON backup.</p><input type="file" accept="application/json,.json" data-avl-import-file><p><strong>The current ledger is automatically backed up internally before import.</strong></p></form>`,
+      buttons: [
+        { action: "import", label: "Import Backup", callback: (event, button, dialog) => ({ file: dialog.element.querySelector("[data-avl-import-file]")?.files?.[0] || null }) },
+        { action: "close", label: "Cancel", default: true, callback: () => ({ file: null }) }
+      ],
+      modal: true
+    });
+    if (!result?.file) return;
+    let payload;
+    try { payload = JSON.parse(await result.file.text()); }
+    catch { throw new Error("The selected file is not valid JSON."); }
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Replace Current Resource Ledger" },
+      content: `<p>Replace the current persistent resource ledger with this backup?</p><p><strong>The current ledger will be saved to Actor Vault's automatic internal backups first.</strong></p>`,
+      yes: { label: "Import and Replace" }, no: { label: "Cancel" }, modal: true
+    });
+    if (!confirmed) return;
+    await ActorVaultLedger.importBackup(payload);
+    ui.notifications.info("Actor Vault resource ledger imported successfully.");
+    await app.render({ force: true });
+  }
+
+  static bindAdminButtons(app, root) {
+    if (!game.user.isGM) return;
     const toolbar = root.querySelector(".avd-header__actions");
     if (!toolbar) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.avlManageArchived = "true";
-    button.innerHTML = '<i class="fas fa-user-clock"></i> Archived Ledgers';
-    button.addEventListener("click", () => this.manageArchived().catch(error => ui.notifications.error(error.message)));
-    toolbar.append(button);
+    if (!root.querySelector("[data-avl-archived-ledgers]")) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.avlArchivedLedgers = "true";
+      button.innerHTML = '<i class="fas fa-box-archive"></i> Archived Ledgers';
+      button.addEventListener("click", () => this.openArchivedLedgers().catch(error => ui.notifications.error(error.message)));
+      toolbar.append(button);
+    }
+    if (!root.querySelector("[data-avl-export-ledger]")) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.avlExportLedger = "true";
+      button.innerHTML = '<i class="fas fa-file-export"></i> Export Ledger';
+      button.addEventListener("click", () => this.exportLedger());
+      toolbar.append(button);
+    }
+    if (!root.querySelector("[data-avl-import-ledger]")) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.avlImportLedger = "true";
+      button.innerHTML = '<i class="fas fa-file-import"></i> Import Ledger';
+      button.addEventListener("click", () => this.importLedger(app).catch(error => ui.notifications.error(error.message)));
+      toolbar.append(button);
+    }
+  }
+
+  // Consolidated layout cleanup previously supplied by final-layout.js.
+  static cleanStored(row) {
+    row.classList.add("avfl-stored-row");
+    row.querySelectorAll("[data-avp-progression], [data-avs-sync], .avs-skill-reason, .avx-skill-reason, .actor-vault__owner-label").forEach(node => node.remove());
+    const identity = row.querySelector(".actor-vault__identity");
+    if (!identity) return;
+    const meta = identity.querySelector("span:not(.avfl-stored-owner)");
+    const owner = meta?.textContent?.split("·").at(-1)?.trim() || "";
+    meta?.remove();
+    let ownerLine = identity.querySelector(".avfl-stored-owner");
+    if (!ownerLine) {
+      ownerLine = document.createElement("span");
+      ownerLine.className = "avfl-stored-owner";
+      identity.append(ownerLine);
+    }
+    ownerLine.textContent = owner;
+  }
+
+  static cleanActive(row) {
+    row.classList.add("avfl-active-row");
+    row.querySelectorAll(".avs-skill-reason, .avx-skill-reason").forEach(node => node.remove());
+    const sync = [...row.querySelectorAll("[data-avs-sync]")];
+    sync.slice(1).forEach(node => node.remove());
+    const identity = row.querySelector(".actor-vault__identity");
+    const meta = identity?.querySelector("span");
+    const isNpc = meta?.textContent?.trim().toLowerCase().startsWith("npc");
+    row.classList.toggle("avfl-npc-row", Boolean(isNpc));
+    if (isNpc) {
+      row.querySelectorAll("[data-avp-progression], [data-avs-sync]").forEach(node => node.remove());
+      identity?.querySelector(".avl-skill-summary, .avfl-skill-summary")?.remove();
+      return;
+    }
+    const progression = row.querySelector("[data-avp-progression]");
+    if (!progression || !identity) return;
+    let summary = identity.querySelector(".avfl-skill-summary");
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.className = "avfl-skill-summary";
+      identity.append(summary);
+    }
+    const points = progression.querySelector(".avp-skill-points");
+    const breakdown = progression.querySelector(".avp-breakdown");
+    if (points) {
+      points.innerHTML = points.innerHTML.replace(/\s*\/\s*19/g, "");
+      summary.append(points);
+    }
+    if (breakdown) summary.append(breakdown);
+    progression.querySelectorAll(".avl-worldbreaker-label, .avuf-worldbreaker-label, .avfl-worldbreaker-label").forEach(node => node.remove());
+    const select = progression.querySelector("select");
+    if (select && !progression.querySelector(".avfl-worldbreaker-label")) {
+      const label = document.createElement("span");
+      label.className = "avfl-worldbreaker-label";
+      label.textContent = "Worldbreaker";
+      select.before(label);
+    }
+  }
+
+  static applyLayout(root) {
+    root.classList.add("avfl-layout");
+    const form = root.querySelector("form[data-resource-form]");
+    const grid = form?.querySelector(".actor-vault__resource-grid");
+    const actions = form?.querySelector(".actor-vault__resource-actions");
+    if (grid && actions && !actions.dataset.avflMoved) {
+      actions.dataset.avflMoved = "true";
+      grid.append(actions);
+    }
+    root.querySelectorAll("[data-pack-id]").forEach(row => this.cleanStored(row));
+    root.querySelectorAll("[data-actor-id]").forEach(row => this.cleanActive(row));
   }
 
   static async enhance(app, element) {
     if (app?.id !== "actor-vault-app" || !globalThis.ActorVaultLedger) return;
     const root = this.root(element, app);
     if (!root) return;
+    this.applyLayout(root);
     this.bindSave(app, root);
     this.bindHousing(app, root);
-    // Loan contracts are handled via Meta Shop UI.
     this.bindHistory(root);
-    this.bindArchiveManager(root);
+    this.bindAdminButtons(app, root);
   }
 }
 
 globalThis.ActorVaultLedgerUI = ActorVaultLedgerUI;
 Hooks.once("ready", async () => {
   game.socket.on(AVLUI_SOCKET, payload => ActorVaultLedgerUI.onSocket(payload));
-  if (game.user.isGM) await ActorVaultLedgerUI.restoreCurrentUsers();
 });
-Hooks.on("updateUser", (user, changes) => {
-  if (!game.user.isGM || ActorVaultLedgerUI.syncing) return;
-  if (foundry.utils.hasProperty(changes, `flags.${AVLUI_SCOPE}.${AVLUI_RESOURCE_KEY}`) || foundry.utils.hasProperty(changes, `flags.${AVLUI_SCOPE}.${AVLUI_HISTORY_KEY}`)) {
-    ActorVaultLedgerUI.syncFromUser(user).catch(error => console.error("actor-vault | Ledger sync failed", error));
-  }
-});
-Hooks.on("createUser", () => { if (game.user.isGM) ActorVaultLedgerUI.restoreCurrentUsers().catch(console.error); });
+Hooks.on("createUser", () => { if (game.user.isGM) ActorVaultLedger.syncCurrentUsers().catch(console.error); });
 Hooks.on("deleteUser", () => { if (game.user.isGM) ActorVaultLedger.syncCurrentUsers().catch(console.error); });
 Hooks.on("renderApplicationV2", (app, element) => {
   if (app?.id !== "actor-vault-app") return;
-  for (const delay of [0, 75, 200]) setTimeout(() => ActorVaultLedgerUI.enhance(app, element), delay);
+  for (const delay of [0, 75, 200, 500]) setTimeout(() => ActorVaultLedgerUI.enhance(app, element), delay);
 });
