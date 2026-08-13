@@ -5,109 +5,116 @@ class ActorVaultFinalLayout {
     return element instanceof HTMLElement ? element : element?.[0] || app?.element || null;
   }
 
-  static keepOneHistoryButton(root) {
-    const buttons = [...root.querySelectorAll(
-      ".actor-vault-history-open, [data-avp-history], [data-avx-history], [data-avuf-own-history]"
-    )];
-    if (!buttons.length) return;
-    const keep = buttons[0];
-    for (const button of buttons.slice(1)) button.remove();
-    keep.innerHTML = `<i class="fas fa-clock-rotate-left"></i> ${game.user.isGM ? "Resource History" : "My Resource History"}`;
+  static renameRewards(root) {
+    const button = root?.querySelector("[data-avms-reward]");
+    if (button) button.textContent = "Claim Session Rewards";
   }
 
-  static cleanStored(row) {
-    row.classList.add("avfl-stored-row");
-    row.querySelectorAll(
-      "[data-avp-progression], [data-avs-sync], .avs-skill-reason, .avx-skill-reason, .actor-vault__owner-label"
-    ).forEach(node => node.remove());
+  static installHistoryOverride() {
+    if (!globalThis.ActorVaultLedgerUI || !globalThis.ActorVaultLedger) return;
 
-    const identity = row.querySelector(".actor-vault__identity");
-    if (!identity) return;
-    const meta = identity.querySelector("span:not(.avfl-stored-owner)");
-    const owner = meta?.textContent?.split("·").at(-1)?.trim() || "";
-    meta?.remove();
-    let ownerLine = identity.querySelector(".avfl-stored-owner");
-    if (!ownerLine) {
-      ownerLine = document.createElement("span");
-      ownerLine.className = "avfl-stored-owner";
-      identity.append(ownerLine);
-    }
-    ownerLine.textContent = owner;
+    ActorVaultLedgerUI.openHistory = async function(initialUserId) {
+      const current = game.user.isGM
+        ? game.users.filter(user => !ActorVaultLedger.getEntry(user.id)?.archived).sort((a, b) => a.name.localeCompare(b.name))
+        : [game.user];
+      const archived = game.user.isGM
+        ? ActorVaultLedger.allEntries().filter(entry => entry.archived).sort((a, b) => String(a.name).localeCompare(String(b.name)))
+        : [];
+
+      const currentOptions = current.map(user => `<option value="${foundry.utils.escapeHTML(user.id)}" ${user.id === initialUserId ? "selected" : ""}>${foundry.utils.escapeHTML(user.name)}${user.isGM ? " [GM]" : ""}</option>`).join("");
+      const archivedOptions = archived.length
+        ? `<optgroup label="Archived">${archived.map(entry => `<option value="${foundry.utils.escapeHTML(entry.key)}">${foundry.utils.escapeHTML(entry.name)} [Archived]</option>`).join("")}</optgroup>`
+        : "";
+
+      const dialog = new foundry.applications.api.DialogV2({
+        window: { title: game.user.isGM ? "Resource History" : "My Resource History", resizable: true },
+        position: { width: 1180, height: 720 },
+        content: `<section class="avd-history"><label>Player<select data-avl-history-user ${game.user.isGM ? "" : "disabled"}>${currentOptions}${archivedOptions}</select></label><div data-avl-history-log></div></section>`,
+        buttons: [{ action: "close", label: "Close", default: true }]
+      });
+
+      await dialog.render({ force: true });
+      const select = dialog.element.querySelector("[data-avl-history-user]");
+      const log = dialog.element.querySelector("[data-avl-history-log]");
+      const housingName = tier => ["None", "Homestead", "House", "Manor", "Estate"][Math.max(0, Math.min(4, Number(tier) || 0))];
+
+      const draw = () => {
+        const history = game.users.get(select.value)
+          ? ActorVaultLedger.getHistory(select.value)
+          : (ActorVaultLedger.getEntryByKey(select.value)?.history || []);
+        if (!history.length) {
+          log.innerHTML = "<p>No resource history recorded.</p>";
+          return;
+        }
+        log.innerHTML = `<table><thead><tr><th>Date</th><th>Action</th><th>Character</th><th>Editor</th><th>Credits</th><th>Housing</th><th>Gold</th><th>XP</th><th>Storage</th></tr></thead><tbody>${history.map(entry => {
+          const state = entry.state || {};
+          const storage = Array.isArray(state.storage) ? state.storage.filter(Boolean).join(", ") : "";
+          const editor = entry.editorName || game.users.get(entry.editorUserId)?.name || "Unknown";
+          return `<tr><td>${new Date(entry.timestamp).toLocaleString()}</td><td>${foundry.utils.escapeHTML(entry.action || "Dashboard update")}</td><td>${foundry.utils.escapeHTML(entry.actorName || "—")}</td><td>${foundry.utils.escapeHTML(editor)}</td><td>${Number(state.credits) || 0}</td><td>${housingName(state.housingTier)}</td><td>${Number(state.gold) || 0}</td><td>${Number(state.xp) || 0}</td><td>${foundry.utils.escapeHTML(storage || "—")}</td></tr>`;
+        }).join("")}</tbody></table>`;
+      };
+
+      select.addEventListener("change", draw);
+      draw();
+    };
   }
 
-  static cleanActive(row) {
-    row.classList.add("avfl-active-row");
-    row.querySelectorAll(".avs-skill-reason, .avx-skill-reason").forEach(node => node.remove());
-    const sync = [...row.querySelectorAll("[data-avs-sync]")];
-    sync.slice(1).forEach(node => node.remove());
-
-    const identity = row.querySelector(".actor-vault__identity");
-    const meta = identity?.querySelector("span");
-    const isNpc = meta?.textContent?.trim().toLowerCase().startsWith("npc");
-    row.classList.toggle("avfl-npc-row", Boolean(isNpc));
-
-    if (isNpc) {
-      row.querySelectorAll("[data-avp-progression], [data-avs-sync]").forEach(node => node.remove());
-      identity?.querySelector(".avl-skill-summary, .avfl-skill-summary")?.remove();
-      return;
-    }
-
-    const progression = row.querySelector("[data-avp-progression]");
-    if (!progression || !identity) return;
-
-    let summary = identity.querySelector(".avfl-skill-summary");
-    if (!summary) {
-      summary = document.createElement("div");
-      summary.className = "avfl-skill-summary";
-      identity.append(summary);
-    }
-
-    const points = progression.querySelector(".avp-skill-points");
-    const breakdown = progression.querySelector(".avp-breakdown");
-    if (points) {
-      points.innerHTML = points.innerHTML.replace(/\s*\/\s*19/g, "");
-      summary.append(points);
-    }
-    if (breakdown) summary.append(breakdown);
-
-    progression.querySelectorAll(".avl-worldbreaker-label, .avuf-worldbreaker-label, .avfl-worldbreaker-label")
-      .forEach(node => node.remove());
-    const select = progression.querySelector("select");
-    if (select) {
-      const label = document.createElement("span");
-      label.className = "avfl-worldbreaker-label";
-      label.textContent = "Worldbreaker";
-      select.before(label);
-    }
-  }
-
-  static moveSaveButton(root) {
+  static bindArchiveToggle(app, root) {
+    if (!game.user.isGM || !globalThis.ActorVaultLedger || root.querySelector("[data-avfl-archive-ledger]")) return;
+    const toolbar = root.querySelector(".avd-header__actions");
     const form = root.querySelector("form[data-resource-form]");
-    const grid = form?.querySelector(".actor-vault__resource-grid");
-    const actions = form?.querySelector(".actor-vault__resource-actions");
-    if (!grid || !actions || actions.dataset.avflMoved) return;
-    actions.dataset.avflMoved = "true";
-    grid.append(actions);
-  }
+    const user = game.users.get(form?.dataset.userId);
+    if (!toolbar || !user) return;
 
-  static clean(app, root) {
-    if (!root?.isConnected) return;
-    root.classList.add("avfl-layout");
-    this.keepOneHistoryButton(root);
-    this.moveSaveButton(root);
-    root.querySelectorAll("[data-pack-id]").forEach(row => this.cleanStored(row));
-    root.querySelectorAll("[data-actor-id]").forEach(row => this.cleanActive(row));
+    const entry = ActorVaultLedger.getEntry(user.id);
+    const archived = Boolean(entry?.archived);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.avflArchiveLedger = "true";
+    button.innerHTML = archived
+      ? '<i class="fas fa-box-open"></i> Restore Ledger'
+      : '<i class="fas fa-box-archive"></i> Archive Ledger';
+
+    button.addEventListener("click", async () => {
+      try {
+        if (archived) {
+          await ActorVaultLedger.restoreArchived(ActorVaultLedger.keyForUser(user));
+          ui.notifications.info(`${user.name}'s resource ledger was restored.`);
+        } else {
+          const confirmed = await foundry.applications.api.DialogV2.confirm({
+            window: { title: `Archive ${user.name}'s Resource Ledger` },
+            content: `<p>Archive <strong>${foundry.utils.escapeHTML(user.name)}</strong>'s resource ledger and history?</p><p>The data is preserved and remains available under Resource History and Archived Ledgers.</p>`,
+            yes: { label: "Archive Ledger" },
+            no: { label: "Cancel" },
+            modal: true
+          });
+          if (!confirmed) return;
+          await ActorVaultLedger.archiveUser(user.id);
+          ui.notifications.info(`${user.name}'s resource ledger was archived.`);
+        }
+        await app.render({ force: true });
+      } catch (error) {
+        ui.notifications.error(error.message);
+      }
+    });
+
+    toolbar.append(button);
   }
 
   static run(app, element) {
     const root = this.root(app, element);
     if (!root) return;
-    for (const delay of [0, 75, 250, 750]) {
-      setTimeout(() => this.clean(app, root), delay);
+    for (const delay of [250, 450, 700]) {
+      setTimeout(() => {
+        if (!root?.isConnected) return;
+        this.renameRewards(root);
+        this.bindArchiveToggle(app, root);
+      }, delay);
     }
   }
 }
 
+Hooks.once("ready", () => ActorVaultFinalLayout.installHistoryOverride());
 Hooks.on("renderApplicationV2", (app, element) => {
   if (app?.id === AVFL_APP_ID) ActorVaultFinalLayout.run(app, element);
 });
