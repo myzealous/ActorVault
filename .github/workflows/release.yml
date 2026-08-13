@@ -17,6 +17,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate module manifest and script syntax
+        shell: bash
+        run: |
+          npm run validate
+          for file in scripts/*.js; do
+            node --check "$file"
+          done
+
       - name: Build Foundry module ZIP
         shell: bash
         run: |
