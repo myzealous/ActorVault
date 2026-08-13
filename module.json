@@ -21,6 +21,7 @@
     }]
   },
   "esmodules": [
+    "scripts/resource-ledger.js",
     "scripts/actor-vault.js",
     "scripts/checkout-flow.js",
     "scripts/dashboard-v3.js",
@@ -35,7 +36,8 @@
     "scripts/long-rest-history-v2.js",
     "scripts/public-api.js",
     "scripts/owner-dropdown-all-users.js",
-    "scripts/dashboard-all-users.js"
+    "scripts/dashboard-all-users.js",
+    "scripts/resource-ledger-ui.js"
   ],
   "styles": [
     "styles/actor-vault.css",
