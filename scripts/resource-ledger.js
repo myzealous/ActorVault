@@ -175,14 +175,6 @@ class ActorVaultLedger {
     };
   }
 
-  static goldToCopper(gold) {
-    return Math.round((Number(gold) || 0) * 100);
-  }
-
-  static copperToGold(copper) {
-    return Math.round(Number(copper) || 0) / 100;
-  }
-
   static async takeLoan(userId, loanId, requesterId = game.user.id) {
     const user = game.users.get(userId);
     if (!user) throw new Error("Player not found.");
@@ -197,7 +189,10 @@ class ActorVaultLedger {
     if (entry.loans[loanId]?.active) throw new Error(`${def.name} is already active.`);
     const previous = this.normalizeResources(entry.resources);
     const next = foundry.utils.deepClone(previous);
-    if (loanId === "ironContract") next.gold = this.copperToGold(this.goldToCopper(next.gold) + def.receiveCopper);
+    if (loanId === "ironContract") {
+      next.gold += def.receiveGold;
+      next.credits += def.receiveCredits;
+    }
     if (loanId === "trainingGrounds") next.xp += def.receiveXp;
     entry.resources = next;
     entry.loans[loanId] = { active: true, takenAt: Date.now(), takenByUserId: requester.id, receiveLabel: def.receiveLabel, repayLabel: def.repayLabel };
@@ -224,9 +219,9 @@ class ActorVaultLedger {
     const previous = this.normalizeResources(entry.resources);
     const next = foundry.utils.deepClone(previous);
     if (loanId === "ironContract") {
-      const available = this.goldToCopper(next.gold);
-      if (available < def.repayCopper) throw new Error(`${def.name} requires ${def.repayLabel} to repay.`);
-      next.gold = this.copperToGold(available - def.repayCopper);
+      if (next.gold < def.repayGold || next.credits < def.repayCredits) throw new Error(`${def.name} requires ${def.repayLabel} to repay.`);
+      next.gold -= def.repayGold;
+      next.credits -= def.repayCredits;
     }
     if (loanId === "trainingGrounds") {
       if (next.xp < def.repayXp) throw new Error(`${def.name} requires ${def.repayLabel} to repay.`);
