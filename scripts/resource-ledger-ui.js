@@ -358,7 +358,7 @@ class ActorVaultLedgerUI {
     if (!root) return;
     this.bindSave(app, root);
     this.bindHousing(app, root);
-    this.bindLoans(app, root);
+    // Loan contracts are handled via Meta Shop UI.
     this.bindHistory(root);
     this.bindArchiveManager(root);
   }
