@@ -157,10 +157,12 @@ class ActorVaultLedger {
       ironContract: {
         id: "ironContract",
         name: "The Iron Contract",
-        receiveLabel: "250g 5sc",
-        repayLabel: "300g 6sc",
-        receiveCopper: 25050,
-        repayCopper: 30060
+        receiveLabel: "250g + 5sc",
+        repayLabel: "300g + 6sc",
+        receiveGold: 250,
+        receiveCredits: 5,
+        repayGold: 300,
+        repayCredits: 6
       },
       trainingGrounds: {
         id: "trainingGrounds",
