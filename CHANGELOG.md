@@ -1,9 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+- Removed Resource Ledger export/import controls from the Actor Vault UI.
+- Fixed duplicate Archived Ledgers buttons so only one GM archive control is shown.
+- Added a Long Rest Cost column to Resource History. Long-rest entries show the cost change, while unrelated transactions show a dash.
+
 ## 1.1.0
 
 - Made the world-level Resource Ledger the authoritative resource/history store, with Foundry User flags retained as compatibility mirrors.
-- Added ledger schema v2, automatic pre-migration snapshots, and JSON export/import controls.
+- Added ledger schema v2 and automatic pre-migration snapshots.
 - Added a shared transaction engine with structured transaction type, resource delta, changed values, metadata, and before/after balances.
 - Routed dashboard saves, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest credit changes through the shared transaction engine.
 - Resource History now shows transaction type and delta, includes GM users, and supports viewing automatically archived ledgers.
@@ -14,8 +20,8 @@
 ## 1.0.9
 
 - Made the Meta Shop vertically scrollable so all shop categories remain reachable.
-- Renamed the Rewards action to `Claim Session Rewards`.
-- Added a GM `Archive Ledger` / `Restore Ledger` control for the currently selected user while preserving archived balances and history.
+- Renamed the Rewards action to Claim Session Rewards.
+- Added a GM Archive Ledger / Restore Ledger control for the currently selected user while preserving archived balances and history.
 - Resource History now includes GM accounts as well as players and archived ledgers.
 
 ## 1.0.8
@@ -30,7 +36,7 @@
 
 ## 0.1.1
 
-- Repackaged with `module.json` at the root of the Forge import ZIP.
+- Repackaged with module.json at the root of the Forge import ZIP.
 - Added GitHub-ready project files, license, validation script, and release workflow.
 - Removed blank manifest and download fields from the local-upload manifest.
 
