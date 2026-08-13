@@ -88,6 +88,7 @@ class ActorVaultLedger {
     const key = this.keyForUser(user);
     if (!key) return null;
     const existing = store.entries?.[key] || {};
+    const manualArchived = Boolean(existing.manualArchived);
     store.entries ||= {};
     store.entries[key] = {
       key,
@@ -100,7 +101,8 @@ class ActorVaultLedger {
         ? existing.history
         : (Array.isArray(user.getFlag(AVL_RESOURCE_SCOPE, AVL_HISTORY_KEY)) ? foundry.utils.deepClone(user.getFlag(AVL_RESOURCE_SCOPE, AVL_HISTORY_KEY)) : []),
       loans: existing.loans && typeof existing.loans === "object" ? existing.loans : {},
-      archived: false,
+      archived: manualArchived,
+      manualArchived,
       updatedAt: Date.now()
     };
     return store.entries[key];
@@ -236,6 +238,35 @@ class ActorVaultLedger {
     await user.setFlag(AVL_RESOURCE_SCOPE, AVL_RESOURCE_KEY, next);
     await user.setFlag(AVL_RESOURCE_SCOPE, AVL_HISTORY_KEY, entry.history.slice(0, 30));
     return { message: `${user.name} repaid ${def.name}.` };
+  }
+
+  static async archiveUser(userId) {
+    if (!game.user.isGM) throw new Error("Only a GM can archive resource ledgers.");
+    const user = game.users.get(userId);
+    if (!user) throw new Error("Player not found.");
+    const store = this.store();
+    const entry = this.ensureEntryInStore(store, user);
+    entry.manualArchived = true;
+    entry.archived = true;
+    entry.updatedAt = Date.now();
+    await this.write(store);
+    return entry;
+  }
+
+  static async restoreArchived(key) {
+    if (!game.user.isGM) throw new Error("Only a GM can restore archived resource ledgers.");
+    const store = this.store();
+    const entry = store.entries?.[key];
+    if (!entry) throw new Error("Archived ledger user not found.");
+    const user = game.users.find(candidate => this.keyForUser(candidate) === key);
+    if (!user) throw new Error(`${entry.name || "This user"} must exist as a Foundry user before the ledger can be restored.`);
+    entry.manualArchived = false;
+    entry.archived = false;
+    entry.currentFoundryUserId = user.id;
+    entry.foundryUserIds = Array.from(new Set([...(entry.foundryUserIds || []), user.id]));
+    entry.updatedAt = Date.now();
+    await this.write(store);
+    return entry;
   }
 
   static async deleteArchived(key) {
