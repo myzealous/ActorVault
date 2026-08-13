@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.9
+
+- Made the Meta Shop vertically scrollable so all shop categories remain reachable.
+- Renamed the Rewards action to `Claim Session Rewards`.
+- Added a GM `Archive Ledger` / `Restore Ledger` control for the currently selected user while preserving archived balances and history.
+- Resource History now includes GM accounts as well as players and archived ledgers.
+
 ## 1.0.8
 
 - Added a persistent world-level resource ledger keyed by Forge player identity when available, preserving resource history if a Foundry user is removed or recreated.
