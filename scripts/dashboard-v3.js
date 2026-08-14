@@ -90,7 +90,7 @@ class ActorVaultDashboardV3 {
       if (!entry?.uuid) continue;
       let document = null;
       try { document = await fromUuid(entry.uuid); } catch (_) { /* stale entry */ }
-      if (document) spent += Math.max(0, Math.trunc(Number(entry.points) || 1));
+      if (document) spent += Math.max(0, Math.trunc(Number(entry.points) || 0));
     }
     return spent;
   }
