@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed Skill Tree synchronization so zero-point entries left behind after a respec are not counted as spent points.
+- Actor Vault now sums the current `points` values on resolved Skill Tree entries instead of treating every resolved entry as at least one spent point.
+
 ## 1.2.0
 
 - Improved the GM Update Skill Points workflow so actors requiring review are named directly in the summary.
