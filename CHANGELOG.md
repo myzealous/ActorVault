@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Improved the GM Update Skill Points workflow so actors requiring review are named directly in the summary.
+- Added a review dialog showing each affected actor, the reason review is required, entitlement, spent points, current unspent points, and expected unspent points.
+- Added matching console diagnostics for skill-point review cases.
+
 ## 1.1.1
 
 - Removed Resource Ledger export/import controls from the Actor Vault UI.
