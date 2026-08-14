@@ -55,12 +55,55 @@ class ActorVaultWorkflowControlsV3 {
       + Math.max(0, Math.min(3, Math.trunc(Number(record.worldbreakerTier) || 0)));
     const spent = await this.validSpentPoints(actor);
     const currentRaw = foundry.utils.getProperty(actor, "flags.skill-tree.skillPoints");
-    if (spent === null || !Number.isFinite(Number(currentRaw))) return { state: "error" };
+
+    if (spent === null || !Number.isFinite(Number(currentRaw))) {
+      return {
+        state: "error",
+        reason: "Skill Tree data is missing or invalid.",
+        entitlement,
+        spent,
+        current: null,
+        expected: null
+      };
+    }
+
     const current = Math.trunc(Number(currentRaw));
     const expected = entitlement - spent;
-    if (expected < 0 || current > expected) return { state: "error", current, expected };
-    if (current === expected) return { state: "current", current, expected };
-    return { state: "ready", current, expected };
+
+    if (expected < 0) {
+      return {
+        state: "error",
+        reason: `Spent skill points (${spent}) exceed entitlement (${entitlement}).`,
+        entitlement,
+        spent,
+        current,
+        expected
+      };
+    }
+
+    if (current > expected) {
+      return {
+        state: "error",
+        reason: `Current unspent points (${current}) exceed the correct amount (${expected}).`,
+        entitlement,
+        spent,
+        current,
+        expected
+      };
+    }
+
+    if (current === expected) {
+      return { state: "current", reason: "Skill points are already correct.", entitlement, spent, current, expected };
+    }
+
+    return {
+      state: "ready",
+      reason: `Ready to update unspent points from ${current} to ${expected}.`,
+      entitlement,
+      spent,
+      current,
+      expected
+    };
   }
 
   static styleCurrent(button) {
@@ -83,7 +126,7 @@ class ActorVaultWorkflowControlsV3 {
         button.disabled = true;
         try {
           const status = await this.skillStatus(actor);
-          if (!status || status.state !== "ready") throw new Error("Skill points no longer need an update.");
+          if (!status || status.state !== "ready") throw new Error(status?.reason || "Skill points no longer need an update.");
           await actor.update({ "flags.skill-tree.skillPoints": status.expected });
           this.styleCurrent(button);
           ui.notifications.info(`${actor.name}: skill points updated from ${status.current} to ${status.expected}.`);
@@ -101,7 +144,7 @@ class ActorVaultWorkflowControlsV3 {
       .filter(Boolean);
     let updated = 0;
     let current = 0;
-    let review = 0;
+    const review = [];
     button.disabled = true;
     try {
       for (const actor of actors) {
@@ -110,10 +153,55 @@ class ActorVaultWorkflowControlsV3 {
         if (status.state === "ready") {
           await actor.update({ "flags.skill-tree.skillPoints": status.expected });
           updated += 1;
-        } else if (status.state === "current") current += 1;
-        else review += 1;
+        } else if (status.state === "current") {
+          current += 1;
+        } else {
+          review.push({ actor, status });
+        }
       }
-      ui.notifications.info(`Skill points: ${updated} updated, ${current} already current${review ? `, ${review} require review` : ""}.`);
+
+      ui.notifications.info(`Skill points: ${updated} updated, ${current} already current${review.length ? `, ${review.length} require review: ${review.map(entry => entry.actor.name).join(", ")}` : ""}.`);
+
+      if (review.length) {
+        console.warn("Actor Vault | Skill points requiring review");
+        console.table(review.map(({ actor, status }) => ({
+          actor: actor.name,
+          reason: status.reason || "Review required.",
+          entitlement: status.entitlement ?? "—",
+          spent: status.spent ?? "—",
+          current: status.current ?? "—",
+          expected: status.expected ?? "—"
+        })));
+
+        const rows = review.map(({ actor, status }) => `
+          <tr>
+            <td><strong>${foundry.utils.escapeHTML(actor.name)}</strong></td>
+            <td>${foundry.utils.escapeHTML(status.reason || "Review required.")}</td>
+            <td>${status.entitlement ?? "—"}</td>
+            <td>${status.spent ?? "—"}</td>
+            <td>${status.current ?? "—"}</td>
+            <td>${status.expected ?? "—"}</td>
+          </tr>
+        `).join("");
+
+        await foundry.applications.api.DialogV2.wait({
+          window: { title: "Skill Points Requiring Review" },
+          position: { width: 820 },
+          content: `
+            <div style="padding:10px;">
+              <p><strong>${review.length} actor${review.length === 1 ? "" : "s"} require review.</strong></p>
+              <table style="width:100%;">
+                <thead>
+                  <tr><th>Actor</th><th>Reason</th><th>Entitlement</th><th>Spent</th><th>Current</th><th>Expected</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          `,
+          buttons: [{ action: "close", label: "Close", default: true }]
+        });
+      }
+
       const app = foundry.applications.instances.get("actor-vault-app");
       await app?.render({ force: true });
     } catch (error) {
