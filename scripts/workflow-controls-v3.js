@@ -33,6 +33,20 @@ class ActorVaultWorkflowControlsV3 {
     return Math.max(0, Math.min(4, Math.trunc(Number(resources.housingTier) || 0)));
   }
 
+  static getPlayersFolder() {
+    return game.folders.find(folder =>
+      folder.type === "Actor" &&
+      folder.name.trim().toLowerCase() === "players"
+    ) || null;
+  }
+
+  static managedActors() {
+    const root = this.getPlayersFolder();
+    if (!root) return [];
+    const folderIds = new Set([root.id, ...root.getSubfolders(true).map(folder => folder.id)]);
+    return game.actors.filter(actor => actor.folder && folderIds.has(actor.folder.id));
+  }
+
   static async validSpentPoints(actor) {
     const skills = foundry.utils.getProperty(actor, "flags.skill-tree.skills");
     if (!Array.isArray(skills)) return null;
@@ -41,7 +55,7 @@ class ActorVaultWorkflowControlsV3 {
       if (!entry?.uuid) continue;
       let document = null;
       try { document = await fromUuid(entry.uuid); } catch (_) { /* stale tree entry */ }
-      if (document) spent += Math.max(0, Math.trunc(Number(entry.points) || 1));
+      if (document) spent += Math.max(0, Math.trunc(Number(entry.points) || 0));
     }
     return spent;
   }
@@ -139,9 +153,13 @@ class ActorVaultWorkflowControlsV3 {
   }
 
   static async updateAllSkillPoints(button) {
-    const actors = [...document.querySelectorAll("#actor-vault-app [data-actor-id]")]
-      .map(row => game.actors.get(row.dataset.actorId))
-      .filter(Boolean);
+    const actors = [...new Map(
+      this.managedActors()
+        .filter(actor => this.actorLevel(actor) > 0)
+        .filter(actor => Array.isArray(foundry.utils.getProperty(actor, "flags.skill-tree.skills")))
+        .map(actor => [actor.id, actor])
+    ).values()];
+
     let updated = 0;
     let current = 0;
     const review = [];
@@ -160,7 +178,7 @@ class ActorVaultWorkflowControlsV3 {
         }
       }
 
-      ui.notifications.info(`Skill points: ${updated} updated, ${current} already current${review.length ? `, ${review.length} require review: ${review.map(entry => entry.actor.name).join(", ")}` : ""}.`);
+      ui.notifications.info(`Skill points: ${updated} updated, ${current} already current${review.length ? `, ${review.length} require review: ${review.map(entry => entry.actor.name).join(", ")}` : ""}. Checked ${actors.length} eligible actor${actors.length === 1 ? "" : "s"}.`);
 
       if (review.length) {
         console.warn("Actor Vault | Skill points requiring review");
