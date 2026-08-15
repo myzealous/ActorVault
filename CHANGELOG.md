@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+- Fixed player-initiated Actor Vault writes by routing all shared-data requests through Foundry's valid module socket channel, `module.actor-vault`.
+- Added a shared socket bridge that dispatches Meta Shop and dashboard/resource/rest requests to the active GM client and returns the result to the requesting player.
+- This fixes player Meta Shop purchases, session rewards, The Study, dashboard resource saves, Long Rest, Did Not Long Rest, and Quick Recovery actions that previously appeared clickable but did not persist.
+
 ## 1.2.3
 
 - Added a permissive player-access layer so non-GM users can use Actor Vault self-service controls without direct permission to world settings.
