@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.3
+
+- Added a permissive player-access layer so non-GM users can use Actor Vault self-service controls without direct permission to world settings.
+- Dashboard resource saves from players are now proxied through the active GM and written through the persistent Resource Ledger.
+- Long-rest, Did Not Long Rest, and Quick Recovery actions from players are now proxied through the active GM so credit/history writes succeed.
+- Managed Actors in the Players folder tree are granted OWNER-level default ownership, allowing player-side actor interactions such as normal sheet rests and updates.
+- Meta Shop authorization no longer blocks non-GM users from using the shop/rewards workflow for the dashboard target user.
+- Player-facing Meta Shop, Rewards, Study, Resource History, and dashboard resource controls are explicitly re-enabled after the Actor Vault UI finishes rendering.
+
 ## 1.2.2
 
 - Fixed the GM Update Skill Points workflow to use the same zero-point-safe spent-point calculation as the Actor Vault dashboard.
@@ -25,7 +34,7 @@
 
 ## 1.1.0
 
-- Made the world-level Resource Ledger the authoritative resource/history store, with Foundry User flags retained as compatibility mirrors.
+- Made the world-level Resource Ledger the authoritative resource/history store, with Foundry User flags retained as compatibility mirrors only.
 - Added ledger schema v2 and automatic pre-migration snapshots.
 - Added a shared transaction engine with structured transaction type, resource delta, changed values, metadata, and before/after balances.
 - Routed dashboard saves, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest credit changes through the shared transaction engine.
