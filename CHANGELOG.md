@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.6
+
+- Fixed a recursive offline ledger fallback that caused `Maximum call stack size exceeded` for players when no GM was online.
+- Offline resource reads now bootstrap directly from the persistent ledger entry or legacy user flags instead of calling wrapped getters recursively.
+- Restores player dashboard and Meta Shop rendering in no-GM mode.
+
 ## 1.2.5
 
 - Added no-GM player mode for dashboard resources, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest controls.
