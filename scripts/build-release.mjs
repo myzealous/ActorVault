@@ -14,7 +14,7 @@ const files = [
   "README.md",
   "CHANGELOG.md",
   "LICENSE",
-  "scripts/actor-vault.js",
+  "scripts",
   "styles",
   "templates",
   "lang"
