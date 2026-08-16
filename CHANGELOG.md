@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.5
+
+- Added no-GM player mode for dashboard resources, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest controls.
+- Player-owned resource changes fall back to per-user flags when no GM is online, then reconcile back into the persistent world Resource Ledger the next time a GM logs in.
+- Preserved the existing GM socket proxy whenever a GM is online.
+- Character import continues to work directly for players through the checkout flow; Foundry still requires the user's role to have permission to create Actors.
+- Compendium export remains GM-only.
+- Fixed the local release builder so it includes the full scripts directory instead of only actor-vault.js.
+
 ## 1.2.4
 
 - Fixed player-initiated Actor Vault writes by routing all shared-data requests through Foundry's valid module socket channel, `module.actor-vault`.
@@ -46,7 +55,7 @@
 - Routed dashboard saves, Meta Shop purchases, rewards, housing, loans, The Study, and long-rest credit changes through the shared transaction engine.
 - Resource History now shows transaction type and delta, includes GM users, and supports viewing automatically archived ledgers.
 - Meta Shop confirmations show cost and balances before and after a purchase.
-- Expanded Meta Shop descriptions for Forge, Arcanum, Sanctum, and Theater services.
+- Expanded Meta Shop descriptions for Forge, Arcanum, Sanctum, Bulwark, Theater services.
 - Consolidated layout and resource-history compatibility behavior into the Resource Ledger UI; duplicate final-layout and long-rest-history scripts are no longer loaded.
 
 ## 1.0.9
