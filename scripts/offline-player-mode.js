@@ -21,15 +21,36 @@ class ActorVaultOfflinePlayerMode {
   static offlineEntry(userId) {
     const user = game.users.get(userId);
     if (!user) return null;
+
     const stored = user.getFlag(AVOP_MODULE_ID, AVOP_FLAG);
     if (stored && typeof stored === "object") return foundry.utils.deepClone(stored);
 
     const ledger = globalThis.ActorVaultLedger;
+    if (!ledger) return null;
+
+    // IMPORTANT: do not call the original getResources/getHistory/getLoans here.
+    // Those methods call this.getEntry(), which is replaced by the offline shim and
+    // would recurse back into offlineEntry() until the browser stack overflows.
+    const persistent = this.originals.getEntry
+      ? this.originals.getEntry.call(ledger, userId)
+      : null;
+
+    const legacyResources = user.getFlag(AVOP_RESOURCE_SCOPE, AVOP_RESOURCE_KEY) || {};
+    const legacyHistory = user.getFlag(AVOP_RESOURCE_SCOPE, AVOP_HISTORY_KEY) || [];
+
     return {
-      resources: ledger.normalizeResources(this.originals.getResources.call(ledger, userId)),
-      history: this.originals.getHistory.call(ledger, userId) || [],
-      loans: this.originals.getLoans.call(ledger, userId) || {},
-      updatedAt: Date.now()
+      resources: ledger.normalizeResources(persistent?.resources ?? legacyResources),
+      history: foundry.utils.deepClone(
+        Array.isArray(persistent?.history)
+          ? persistent.history
+          : (Array.isArray(legacyHistory) ? legacyHistory : [])
+      ),
+      loans: foundry.utils.deepClone(
+        persistent?.loans && typeof persistent.loans === "object"
+          ? persistent.loans
+          : {}
+      ),
+      updatedAt: Number(persistent?.updatedAt) || Date.now()
     };
   }
 
