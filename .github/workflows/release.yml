@@ -17,6 +17,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Validate module manifest and script syntax
         shell: bash
         run: |
@@ -26,20 +31,18 @@ jobs:
           done
 
       - name: Build Foundry module ZIP
-        shell: bash
-        run: |
-          rm -rf dist
-          mkdir -p dist
-          zip -r dist/actor-vault.zip \
-            module.json \
-            scripts \
-            styles \
-            templates \
-            lang \
-            README.md \
-            CHANGELOG.md \
-            LICENSE
-          cp module.json dist/module.json
+        run: npm run build
+
+      - name: Copy release manifest
+        run: cp module.json dist/module.json
+
+      - name: Upload Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: actor-vault-foundry-release
+          path: |
+            dist/actor-vault.zip
+            dist/module.json
 
       - name: Determine release tag
         id: release_tag
@@ -52,7 +55,7 @@ jobs:
             echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload release assets
+      - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}

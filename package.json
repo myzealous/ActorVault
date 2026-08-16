@@ -1,6 +1,6 @@
 {
   "name": "actor-vault",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "private": true,
   "description": "Foundry VTT v13 actor vault module",
   "scripts": {
