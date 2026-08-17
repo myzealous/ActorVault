@@ -35,9 +35,22 @@ class ActorVaultRewardBonuses {
     return labels;
   }
 
+  static dialogRoot(dialog) {
+    const element = dialog?.element;
+    if (element instanceof HTMLElement) return element;
+    if (element?.[0] instanceof HTMLElement) return element[0];
+    return null;
+  }
+
   static async prompt(level, reward, current) {
     const DialogV2 = foundry.applications.api.DialogV2;
-    let renderDialog = null;
+    const baseAmounts = this.rewardAmounts(reward, {});
+    const baseAfter = {
+      ...current,
+      xp: (Number(current.xp) || 0) + baseAmounts.xp,
+      gold: (Number(current.gold) || 0) + baseAmounts.gold,
+      credits: (Number(current.credits) || 0) + baseAmounts.credits
+    };
 
     const result = await DialogV2.wait({
       window: { title: `Claim Level ${level} Session Rewards` },
@@ -61,15 +74,15 @@ class ActorVaultRewardBonuses {
           </div>
           <hr>
           <div style="display:grid;gap:8px;margin-top:12px;">
-            <div><strong>Reward:</strong> <span data-avrb-reward-xp></span> XP · <span data-avrb-reward-gold></span>g · <span data-avrb-reward-credits></span>sc</div>
-            <div data-avrb-bonuses style="min-height:1.2em;"></div>
+            <div><strong>Reward:</strong> <span data-avrb-reward-xp>${baseAmounts.xp.toLocaleString()}</span> XP · <span data-avrb-reward-gold>${baseAmounts.gold.toLocaleString()}</span>g · <span data-avrb-reward-credits>${baseAmounts.credits.toLocaleString()}</span>sc</div>
+            <div data-avrb-bonuses style="min-height:1.2em;">No bonus selected</div>
             <div><strong>Current:</strong> ${this.esc(ActorVaultMetaShop.balanceLabel(current))}</div>
-            <div><strong>After Claim:</strong> <span data-avrb-after></span></div>
+            <div><strong>After Claim:</strong> <span data-avrb-after>${this.esc(ActorVaultMetaShop.balanceLabel(baseAfter))}</span></div>
           </div>
         </form>`,
       render: (_event, dialog) => {
-        renderDialog = dialog;
-        const root = dialog.element;
+        const root = this.dialogRoot(dialog);
+        if (!root) return;
         const form = root.querySelector(".avrb-reward-form");
         if (!form) return;
 
@@ -81,9 +94,9 @@ class ActorVaultRewardBonuses {
 
         const update = () => {
           const bonuses = {
-            study: Boolean(form.elements.study?.checked),
-            fortuneSeeker: Boolean(form.elements.fortuneSeeker?.checked),
-            fastLearner: Boolean(form.elements.fastLearner?.checked)
+            study: Boolean(form.querySelector('[name="study"]')?.checked),
+            fortuneSeeker: Boolean(form.querySelector('[name="fortuneSeeker"]')?.checked),
+            fastLearner: Boolean(form.querySelector('[name="fastLearner"]')?.checked)
           };
           const amounts = this.rewardAmounts(reward, bonuses);
           const after = {
@@ -112,12 +125,12 @@ class ActorVaultRewardBonuses {
           action: "claim",
           label: "Claim Session Rewards",
           default: true,
-          callback: () => {
-            const form = renderDialog?.element?.querySelector(".avrb-reward-form");
+          callback: (_event, button) => {
+            const form = button?.form;
             return {
-              study: Boolean(form?.elements?.study?.checked),
-              fortuneSeeker: Boolean(form?.elements?.fortuneSeeker?.checked),
-              fastLearner: Boolean(form?.elements?.fastLearner?.checked)
+              study: Boolean(form?.querySelector('[name="study"]')?.checked),
+              fortuneSeeker: Boolean(form?.querySelector('[name="fortuneSeeker"]')?.checked),
+              fastLearner: Boolean(form?.querySelector('[name="fastLearner"]')?.checked)
             };
           }
         },
