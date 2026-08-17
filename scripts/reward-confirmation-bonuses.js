@@ -60,17 +60,30 @@ class ActorVaultRewardBonuses {
             </label>
           </div>
           <hr>
-          <div data-avrb-summary></div>
+          <div style="display:grid;gap:8px;margin-top:12px;">
+            <div><strong>Reward:</strong> <span data-avrb-reward-xp></span> XP · <span data-avrb-reward-gold></span>g · <span data-avrb-reward-credits></span>sc</div>
+            <div data-avrb-bonuses style="min-height:1.2em;"></div>
+            <div><strong>Current:</strong> ${this.esc(ActorVaultMetaShop.balanceLabel(current))}</div>
+            <div><strong>After Claim:</strong> <span data-avrb-after></span></div>
+          </div>
         </form>`,
       render: (_event, dialog) => {
         renderDialog = dialog;
-        const form = dialog.element.querySelector(".avrb-reward-form");
-        const summary = dialog.element.querySelector("[data-avrb-summary]");
+        const root = dialog.element;
+        const form = root.querySelector(".avrb-reward-form");
+        if (!form) return;
+
+        const xpEl = root.querySelector("[data-avrb-reward-xp]");
+        const goldEl = root.querySelector("[data-avrb-reward-gold]");
+        const creditsEl = root.querySelector("[data-avrb-reward-credits]");
+        const bonusEl = root.querySelector("[data-avrb-bonuses]");
+        const afterEl = root.querySelector("[data-avrb-after]");
+
         const update = () => {
           const bonuses = {
-            study: Boolean(form?.elements?.study?.checked),
-            fortuneSeeker: Boolean(form?.elements?.fortuneSeeker?.checked),
-            fastLearner: Boolean(form?.elements?.fastLearner?.checked)
+            study: Boolean(form.elements.study?.checked),
+            fortuneSeeker: Boolean(form.elements.fortuneSeeker?.checked),
+            fastLearner: Boolean(form.elements.fastLearner?.checked)
           };
           const amounts = this.rewardAmounts(reward, bonuses);
           const after = {
@@ -80,12 +93,18 @@ class ActorVaultRewardBonuses {
             credits: (Number(current.credits) || 0) + amounts.credits
           };
           const labels = this.bonusLabels(amounts);
-          if (summary) summary.innerHTML = `
-            <p>Add <strong>${amounts.xp.toLocaleString()} XP, ${amounts.gold.toLocaleString()}g, and ${amounts.credits.toLocaleString()}sc</strong>${labels.length ? `<br><small>${this.esc(labels.join(" · "))}</small>` : ""}.</p>
-            <p>Current: ${this.esc(ActorVaultMetaShop.balanceLabel(current))}<br>
-            After claim: <strong>${this.esc(ActorVaultMetaShop.balanceLabel(after))}</strong></p>`;
+
+          if (xpEl) xpEl.textContent = amounts.xp.toLocaleString();
+          if (goldEl) goldEl.textContent = amounts.gold.toLocaleString();
+          if (creditsEl) creditsEl.textContent = amounts.credits.toLocaleString();
+          if (bonusEl) bonusEl.textContent = labels.length ? labels.join(" · ") : "No bonus selected";
+          if (afterEl) afterEl.textContent = ActorVaultMetaShop.balanceLabel(after);
         };
-        form?.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener("change", update));
+
+        for (const input of form.querySelectorAll('input[type="checkbox"]')) {
+          input.addEventListener("input", update);
+          input.addEventListener("change", update);
+        }
         update();
       },
       buttons: [
