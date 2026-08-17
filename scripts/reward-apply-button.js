@@ -16,9 +16,12 @@ class ActorVaultApplyBonuses {
         credits: (Number(current.credits) || 0) + baseAmounts.credits
       };
 
+      // Foundry v13 DialogV2 requires an HTMLElement content root with NO attributes.
+      // Keep the wrapper completely bare and put classes/data on its child form.
       const content = document.createElement("div");
-      content.className = "avrb-reward-form";
-      content.innerHTML = `
+      const form = document.createElement("form");
+      form.className = "avrb-reward-form";
+      form.innerHTML = `
         <p>Choose any mission reward bonuses that apply to this claim.</p>
         <div style="display:grid;gap:10px;margin:12px 0;">
           <label style="display:flex;gap:10px;align-items:flex-start;"><input type="checkbox" name="study"><span><strong>The Study</strong><br><small>Gain a 10% bonus to experience points (XP) earned from missions.</small></span></label>
@@ -33,14 +36,15 @@ class ActorVaultApplyBonuses {
           <div><strong>Current:</strong> ${this.esc(shop.balanceLabel(current))}</div>
           <div><strong>After Claim:</strong> <span data-avab-after>${this.esc(shop.balanceLabel(baseAfter))}</span></div>
         </div>`;
+      content.append(form);
 
       let applied = { study:false, fortuneSeeker:false, fastLearner:false };
-      const applyButton = content.querySelector("[data-avab-apply]");
+      const applyButton = form.querySelector("[data-avab-apply]");
       applyButton.addEventListener("click", () => {
         applied = {
-          study: Boolean(content.querySelector('[name="study"]')?.checked),
-          fortuneSeeker: Boolean(content.querySelector('[name="fortuneSeeker"]')?.checked),
-          fastLearner: Boolean(content.querySelector('[name="fastLearner"]')?.checked)
+          study: Boolean(form.querySelector('[name="study"]')?.checked),
+          fortuneSeeker: Boolean(form.querySelector('[name="fortuneSeeker"]')?.checked),
+          fastLearner: Boolean(form.querySelector('[name="fastLearner"]')?.checked)
         };
         const amounts = this.rewardAmounts(reward, applied);
         const after = {
@@ -49,11 +53,11 @@ class ActorVaultApplyBonuses {
           credits: (Number(current.credits) || 0) + amounts.credits
         };
         const labels = this.bonusLabels(amounts);
-        content.querySelector("[data-avab-xp]").textContent = amounts.xp.toLocaleString();
-        content.querySelector("[data-avab-gold]").textContent = amounts.gold.toLocaleString();
-        content.querySelector("[data-avab-credits]").textContent = amounts.credits.toLocaleString();
-        content.querySelector("[data-avab-label]").textContent = labels.length ? `Applied: ${labels.join(" · ")}` : "Applied: No bonuses";
-        content.querySelector("[data-avab-after]").textContent = shop.balanceLabel(after);
+        form.querySelector("[data-avab-xp]").textContent = amounts.xp.toLocaleString();
+        form.querySelector("[data-avab-gold]").textContent = amounts.gold.toLocaleString();
+        form.querySelector("[data-avab-credits]").textContent = amounts.credits.toLocaleString();
+        form.querySelector("[data-avab-label]").textContent = labels.length ? `Applied: ${labels.join(" · ")}` : "Applied: No bonuses";
+        form.querySelector("[data-avab-after]").textContent = shop.balanceLabel(after);
         applyButton.textContent = "Bonuses Applied";
         setTimeout(() => { if (applyButton.isConnected) applyButton.textContent = "Apply Bonuses"; }, 900);
       });
