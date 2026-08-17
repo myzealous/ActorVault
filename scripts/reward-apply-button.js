@@ -19,10 +19,11 @@ class ActorVaultApplyBonuses {
           credits: (Number(current.credits) || 0) + amounts.credits
         };
         const labels = this.bonusLabels(amounts);
-
         const checked = key => applied[key] ? " checked" : "";
+
+        // Do not create a nested <form>. DialogV2 already owns the submission form.
         const content = `
-          <form class="avrb-reward-form">
+          <div class="avrb-reward-form">
             <p>Choose any mission reward bonuses that apply to this claim.</p>
             <div style="display:grid;gap:10px;margin:12px 0;">
               <label style="display:flex;gap:10px;align-items:flex-start;">
@@ -45,7 +46,7 @@ class ActorVaultApplyBonuses {
               <div><strong>Current:</strong> ${this.esc(shop.balanceLabel(current))}</div>
               <div><strong>After Claim:</strong> ${this.esc(shop.balanceLabel(after))}</div>
             </div>
-          </form>`;
+          </div>`;
 
         const result = await DialogV2.wait({
           window: { title: `Claim Level ${level} Session Rewards` },
@@ -55,17 +56,18 @@ class ActorVaultApplyBonuses {
             {
               action: "apply",
               label: "Apply Bonuses",
-              callback: (_event, _button, dialog) => {
-                const root = dialog?.element;
-                const form = root?.querySelector?.(".avrb-reward-form");
-                return {
-                  kind: "apply",
-                  bonuses: {
-                    study: Boolean(form?.querySelector('[name="study"]')?.checked),
-                    fortuneSeeker: Boolean(form?.querySelector('[name="fortuneSeeker"]')?.checked),
-                    fastLearner: Boolean(form?.querySelector('[name="fastLearner"]')?.checked)
-                  }
+              callback: (_event, button, dialog) => {
+                const dialogElement = dialog?.element instanceof HTMLElement
+                  ? dialog.element
+                  : dialog?.element?.[0];
+                const scope = button?.form || dialogElement;
+                const next = {
+                  study: Boolean(scope?.querySelector?.('[name="study"]')?.checked),
+                  fortuneSeeker: Boolean(scope?.querySelector?.('[name="fortuneSeeker"]')?.checked),
+                  fastLearner: Boolean(scope?.querySelector?.('[name="fastLearner"]')?.checked)
                 };
+                console.debug(`${AVAB_MODULE_ID} | Apply Bonuses`, next);
+                return { kind: "apply", bonuses: next };
               }
             },
             {
