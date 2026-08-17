@@ -35,11 +35,42 @@ class ActorVaultRewardBonuses {
     return labels;
   }
 
-  static dialogRoot(dialog) {
-    const element = dialog?.element;
-    if (element instanceof HTMLElement) return element;
-    if (element?.[0] instanceof HTMLElement) return element[0];
-    return null;
+  static updatePrompt(form) {
+    if (!(form instanceof HTMLFormElement)) return;
+    const reward = {
+      xp: Number(form.dataset.baseXp) || 0,
+      gold: Number(form.dataset.baseGold) || 0,
+      credits: Number(form.dataset.baseCredits) || 0
+    };
+    const current = {
+      xp: Number(form.dataset.currentXp) || 0,
+      gold: Number(form.dataset.currentGold) || 0,
+      credits: Number(form.dataset.currentCredits) || 0
+    };
+    const bonuses = {
+      study: Boolean(form.querySelector('[name="study"]')?.checked),
+      fortuneSeeker: Boolean(form.querySelector('[name="fortuneSeeker"]')?.checked),
+      fastLearner: Boolean(form.querySelector('[name="fastLearner"]')?.checked)
+    };
+    const amounts = this.rewardAmounts(reward, bonuses);
+    const after = {
+      xp: current.xp + amounts.xp,
+      gold: current.gold + amounts.gold,
+      credits: current.credits + amounts.credits
+    };
+    const labels = this.bonusLabels(amounts);
+
+    const xpEl = form.querySelector("[data-avrb-reward-xp]");
+    const goldEl = form.querySelector("[data-avrb-reward-gold]");
+    const creditsEl = form.querySelector("[data-avrb-reward-credits]");
+    const bonusEl = form.querySelector("[data-avrb-bonuses]");
+    const afterEl = form.querySelector("[data-avrb-after]");
+
+    if (xpEl) xpEl.textContent = amounts.xp.toLocaleString();
+    if (goldEl) goldEl.textContent = amounts.gold.toLocaleString();
+    if (creditsEl) creditsEl.textContent = amounts.credits.toLocaleString();
+    if (bonusEl) bonusEl.textContent = labels.length ? labels.join(" · ") : "No bonus selected";
+    if (afterEl) afterEl.textContent = ActorVaultMetaShop.balanceLabel(after);
   }
 
   static async prompt(level, reward, current) {
@@ -56,19 +87,25 @@ class ActorVaultRewardBonuses {
       window: { title: `Claim Level ${level} Session Rewards` },
       modal: true,
       content: `
-        <form class="avrb-reward-form">
+        <form class="avrb-reward-form"
+          data-base-xp="${Number(reward.xp) || 0}"
+          data-base-gold="${Number(reward.gold) || 0}"
+          data-base-credits="${Number(reward.credits) || 0}"
+          data-current-xp="${Number(current.xp) || 0}"
+          data-current-gold="${Number(current.gold) || 0}"
+          data-current-credits="${Number(current.credits) || 0}">
           <p>Choose any mission reward bonuses that apply to this claim.</p>
           <div style="display:grid;gap:10px;margin:12px 0;">
             <label style="display:flex;gap:10px;align-items:flex-start;">
-              <input type="checkbox" name="study">
+              <input type="checkbox" name="study" onchange="ActorVaultRewardBonuses.updatePrompt(this.form)" oninput="ActorVaultRewardBonuses.updatePrompt(this.form)">
               <span><strong>The Study</strong><br><small>Gain a 10% bonus to experience points (XP) earned from missions.</small></span>
             </label>
             <label style="display:flex;gap:10px;align-items:flex-start;">
-              <input type="checkbox" name="fortuneSeeker">
+              <input type="checkbox" name="fortuneSeeker" onchange="ActorVaultRewardBonuses.updatePrompt(this.form)" oninput="ActorVaultRewardBonuses.updatePrompt(this.form)">
               <span><strong>Fortune Seeker</strong><br><small>Gain a 10% bonus to gold pieces (GP) earned from missions.</small></span>
             </label>
             <label style="display:flex;gap:10px;align-items:flex-start;">
-              <input type="checkbox" name="fastLearner">
+              <input type="checkbox" name="fastLearner" onchange="ActorVaultRewardBonuses.updatePrompt(this.form)" oninput="ActorVaultRewardBonuses.updatePrompt(this.form)">
               <span><strong>Fast Learner</strong><br><small>Gain a 5% bonus to experience points (XP) earned from missions.</small></span>
             </label>
           </div>
@@ -80,53 +117,13 @@ class ActorVaultRewardBonuses {
             <div><strong>After Claim:</strong> <span data-avrb-after>${this.esc(ActorVaultMetaShop.balanceLabel(baseAfter))}</span></div>
           </div>
         </form>`,
-      render: (_event, dialog) => {
-        const root = this.dialogRoot(dialog);
-        if (!root) return;
-        const form = root.querySelector(".avrb-reward-form");
-        if (!form) return;
-
-        const xpEl = root.querySelector("[data-avrb-reward-xp]");
-        const goldEl = root.querySelector("[data-avrb-reward-gold]");
-        const creditsEl = root.querySelector("[data-avrb-reward-credits]");
-        const bonusEl = root.querySelector("[data-avrb-bonuses]");
-        const afterEl = root.querySelector("[data-avrb-after]");
-
-        const update = () => {
-          const bonuses = {
-            study: Boolean(form.querySelector('[name="study"]')?.checked),
-            fortuneSeeker: Boolean(form.querySelector('[name="fortuneSeeker"]')?.checked),
-            fastLearner: Boolean(form.querySelector('[name="fastLearner"]')?.checked)
-          };
-          const amounts = this.rewardAmounts(reward, bonuses);
-          const after = {
-            ...current,
-            xp: (Number(current.xp) || 0) + amounts.xp,
-            gold: (Number(current.gold) || 0) + amounts.gold,
-            credits: (Number(current.credits) || 0) + amounts.credits
-          };
-          const labels = this.bonusLabels(amounts);
-
-          if (xpEl) xpEl.textContent = amounts.xp.toLocaleString();
-          if (goldEl) goldEl.textContent = amounts.gold.toLocaleString();
-          if (creditsEl) creditsEl.textContent = amounts.credits.toLocaleString();
-          if (bonusEl) bonusEl.textContent = labels.length ? labels.join(" · ") : "No bonus selected";
-          if (afterEl) afterEl.textContent = ActorVaultMetaShop.balanceLabel(after);
-        };
-
-        for (const input of form.querySelectorAll('input[type="checkbox"]')) {
-          input.addEventListener("input", update);
-          input.addEventListener("change", update);
-        }
-        update();
-      },
       buttons: [
         {
           action: "claim",
           label: "Claim Session Rewards",
           default: true,
           callback: (_event, button) => {
-            const form = button?.form;
+            const form = button?.form || button?.closest?.("form") || document.querySelector(".avrb-reward-form");
             return {
               study: Boolean(form?.querySelector('[name="study"]')?.checked),
               fortuneSeeker: Boolean(form?.querySelector('[name="fortuneSeeker"]')?.checked),
