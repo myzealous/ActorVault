@@ -32,8 +32,8 @@ class ActorVaultPlayerAccess {
   static async grantActorAccess(actor) {
     if (!game.user.isGM || !actor) return;
     const ownership = foundry.utils.deepClone(actor.ownership || {});
-    if (ownership.default === CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) return;
-    ownership.default = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+    if (ownership.default === CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED) return;
+    ownership.default = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
     await actor.update({ ownership });
   }
 
@@ -330,7 +330,7 @@ Hooks.on("createActor", actor => {
   if (!game.user.isGM) return;
   const ids = ActorVaultPlayerAccess.managedFolderIds();
   if (actor.folder && ids.has(actor.folder.id)) {
-    ActorVaultPlayerAccess.grantActorAccess(actor).catch(error => console.error("actor-vault | Could not grant player access", error));
+    ActorVaultPlayerAccess.grantActorAccess(actor).catch(error => console.error("actor-vault | Could not normalize player access", error));
   }
 });
 
