@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.16
+
+- Fixed the player-access compatibility layer so it no longer grants OWNER as the default permission to every Actor in the Players folder tree.
+- Managed Actors are now normalized to Default Ownership: Limited while preserving all explicit per-user ownership entries, including the Actor's actual Owner assignment.
+- The same normalization is applied when a GM loads the world and when new managed Actors are created, preventing Actor Vault from undoing Limited defaults after imports or manual permission fixes.
+- Player-facing dashboard, Meta Shop, rewards, long-rest, and no-GM workflows remain handled by their existing owner metadata/socket/offline access paths rather than broad default Actor ownership.
+
 ## 1.2.15
 
 - Fixed Actor Vault imports so restored world Actors always use Default Ownership: Limited.
