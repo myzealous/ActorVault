@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.15
+
+- Fixed Actor Vault imports so restored world Actors always use Default Ownership: Limited.
+- The Actor Vault metadata owner is explicitly restored as Owner and any stale explicit ownership entries from the compendium copy are removed.
+- Added a post-create ownership verification/update so Foundry cannot leave an imported Actor with broader permissions than intended.
+
 ## 1.2.6
 
 - Fixed a recursive offline ledger fallback that caused `Maximum call stack size exceeded` for players when no GM was online.
@@ -78,17 +84,3 @@
 - Added the Meta Shop with spell scrolls, crafting, potions, Forge, Arcanum, Sanctum, Bulwark, Theater, Guildhall loans, housing upgrades, and The Mirror.
 - Added level-based Rewards and The Study +10% XP toggle.
 - Added The Iron Contract and Training Grounds loans with one active contract of each type per player.
-- Fixed The Iron Contract so gold and Server Credits are granted and repaid as separate resources.
-- Added release-time manifest/file validation and JavaScript syntax checks.
-
-## 0.1.1
-
-- Repackaged with module.json at the root of the Forge import ZIP.
-- Added GitHub-ready project files, license, validation script, and release workflow.
-- Removed blank manifest and download fields from the local-upload manifest.
-
-## 0.1.0
-
-- Initial actor archive and activation workflow.
-- Player self-service and GM management view.
-- Primary-owner preservation, duplicate prevention, and linked-token/combat safety checks.

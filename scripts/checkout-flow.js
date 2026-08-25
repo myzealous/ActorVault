@@ -28,6 +28,22 @@ class ActorVaultCheckoutFlow {
     };
   }
 
+  static async enforceImportedOwnership(actor, ownerId) {
+    if (!actor) return actor;
+    const expected = this.ownership(ownerId);
+    const current = actor.ownership || {};
+    const explicitKeys = Object.keys(current).filter(key => key !== "default");
+    const hasUnexpectedExplicit = explicitKeys.some(userId => userId !== ownerId);
+    const wrongDefault = Number(current.default) !== CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
+    const wrongOwner = ownerId && Number(current[ownerId]) !== CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+
+    if (wrongDefault || wrongOwner || hasUnexpectedExplicit) {
+      await actor.update({ ownership: expected });
+    }
+
+    return actor;
+  }
+
   static playersFolder() {
     return game.folders.find(folder =>
       folder.type === "Actor" && folder.name.trim().toLowerCase() === AVC_PLAYERS_FOLDER.toLowerCase()
@@ -92,6 +108,7 @@ class ActorVaultCheckoutFlow {
     let actor;
     try {
       [actor] = await Actor.implementation.createDocuments([data], { keepId: false });
+      await this.enforceImportedOwnership(actor, owner.id);
     } catch (error) {
       throw new Error(`Foundry denied the actor import. The user role needs permission to create Actors. ${error.message}`);
     }
@@ -262,7 +279,9 @@ class ActorVaultCheckoutFlow {
             ui.notifications.info(result.message);
             await app.render({ force: true });
           } catch (error) {
+            console.error(`${AVC_MODULE_ID} | Export all failed`, error);
             ui.notifications.error(error.message);
+          } finally {
             button.disabled = false;
           }
         });
@@ -272,8 +291,8 @@ class ActorVaultCheckoutFlow {
   }
 }
 
+globalThis.ActorVaultCheckoutFlow = ActorVaultCheckoutFlow;
 Hooks.on("renderApplicationV2", (app, element) => {
-  if (app?.id === "actor-vault-app") {
-    queueMicrotask(() => ActorVaultCheckoutFlow.enhance(app, element));
-  }
+  if (app?.id !== "actor-vault-app") return;
+  for (const delay of [0, 100, 300]) setTimeout(() => ActorVaultCheckoutFlow.enhance(app, element), delay);
 });
