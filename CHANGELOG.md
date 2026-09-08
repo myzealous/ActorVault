@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.18
+
+- Fixed the GM Update Skill Points workflow so newly created managed characters with no `flags.skill-tree` data are still treated as eligible.
+- New managed characters now initialize Skill Tree data on first skill-point update with `skills: []` and the correct unspent `skillPoints` entitlement.
+- Existing Skill Tree data is preserved; only completely uninitialized characters are auto-initialized.
+- Removed the old eligibility filter that silently excluded leveled characters whose Skill Tree flags had not yet been created.
+
+## 1.2.17
+
+- Added automatic Actor Vault owner-metadata repair for managed characters that have a valid explicit Foundry owner but are missing `flags.actor-vault.record.mainUserId`.
+- Existing managed Actors are repaired when a GM loads the world, and new or ownership-updated Actors self-heal automatically.
+- Owner inference uses explicit Foundry OWNER permissions and prefers non-GM owners.
+
 ## 1.2.16
 
 - Fixed the player-access compatibility layer so it no longer grants OWNER as the default permission to every Actor in the Players folder tree.
