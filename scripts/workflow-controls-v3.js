@@ -47,9 +47,16 @@ class ActorVaultWorkflowControlsV3 {
     return game.actors.filter(actor => actor.folder && folderIds.has(actor.folder.id));
   }
 
+  static skillTree(actor) {
+    return foundry.utils.getProperty(actor, "flags.skill-tree");
+  }
+
   static async validSpentPoints(actor) {
-    const skills = foundry.utils.getProperty(actor, "flags.skill-tree.skills");
+    const skillTree = this.skillTree(actor);
+    if (skillTree == null) return 0;
+    const skills = skillTree.skills;
     if (!Array.isArray(skills)) return null;
+
     let spent = 0;
     for (const entry of skills) {
       if (!entry?.uuid) continue;
@@ -68,9 +75,11 @@ class ActorVaultWorkflowControlsV3 {
       + this.housingTier(this.ownerId(actor))
       + Math.max(0, Math.min(3, Math.trunc(Number(record.worldbreakerTier) || 0)));
     const spent = await this.validSpentPoints(actor);
-    const currentRaw = foundry.utils.getProperty(actor, "flags.skill-tree.skillPoints");
+    const skillTree = this.skillTree(actor);
+    const currentRaw = skillTree?.skillPoints;
+    const uninitialized = skillTree == null;
 
-    if (spent === null || !Number.isFinite(Number(currentRaw))) {
+    if (spent === null || (!uninitialized && !Number.isFinite(Number(currentRaw)))) {
       return {
         state: "error",
         reason: "Skill Tree data is missing or invalid.",
@@ -81,7 +90,7 @@ class ActorVaultWorkflowControlsV3 {
       };
     }
 
-    const current = Math.trunc(Number(currentRaw));
+    const current = uninitialized ? 0 : Math.trunc(Number(currentRaw));
     const expected = entitlement - spent;
 
     if (expected < 0) {
@@ -106,18 +115,36 @@ class ActorVaultWorkflowControlsV3 {
       };
     }
 
-    if (current === expected) {
+    if (current === expected && !uninitialized) {
       return { state: "current", reason: "Skill points are already correct.", entitlement, spent, current, expected };
     }
 
     return {
       state: "ready",
-      reason: `Ready to update unspent points from ${current} to ${expected}.`,
+      reason: uninitialized
+        ? `Ready to initialize Skill Tree data with ${expected} unspent point${expected === 1 ? "" : "s"}.`
+        : `Ready to update unspent points from ${current} to ${expected}.`,
       entitlement,
       spent,
       current,
-      expected
+      expected,
+      uninitialized
     };
+  }
+
+  static async writeSkillPoints(actor, expected) {
+    const skillTree = this.skillTree(actor);
+    if (skillTree == null) {
+      await actor.update({
+        "flags.skill-tree": {
+          skills: [],
+          skillPoints: expected
+        }
+      });
+      return;
+    }
+
+    await actor.update({ "flags.skill-tree.skillPoints": expected });
   }
 
   static styleCurrent(button) {
@@ -141,7 +168,7 @@ class ActorVaultWorkflowControlsV3 {
         try {
           const status = await this.skillStatus(actor);
           if (!status || status.state !== "ready") throw new Error(status?.reason || "Skill points no longer need an update.");
-          await actor.update({ "flags.skill-tree.skillPoints": status.expected });
+          await this.writeSkillPoints(actor, status.expected);
           this.styleCurrent(button);
           ui.notifications.info(`${actor.name}: skill points updated from ${status.current} to ${status.expected}.`);
         } catch (error) {
@@ -156,7 +183,6 @@ class ActorVaultWorkflowControlsV3 {
     const actors = [...new Map(
       this.managedActors()
         .filter(actor => this.actorLevel(actor) > 0)
-        .filter(actor => Array.isArray(foundry.utils.getProperty(actor, "flags.skill-tree.skills")))
         .map(actor => [actor.id, actor])
     ).values()];
 
@@ -169,7 +195,7 @@ class ActorVaultWorkflowControlsV3 {
         const status = await this.skillStatus(actor);
         if (!status) continue;
         if (status.state === "ready") {
-          await actor.update({ "flags.skill-tree.skillPoints": status.expected });
+          await this.writeSkillPoints(actor, status.expected);
           updated += 1;
         } else if (status.state === "current") {
           current += 1;
